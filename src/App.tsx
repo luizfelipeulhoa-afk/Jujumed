@@ -129,7 +129,21 @@ export default function App() {
 
   const respostas = useMemo(() => new Map(Object.entries(sessao.respostas)), [sessao.respostas]);
   const stats = useMemo(() => calculaEstatisticas(respostas), [respostas]);
-  const questaoAtual = useMemo(() => proximaQuestao(sessao.fila, respostas), [sessao.fila, respostas]);
+
+  // Índice da questão ativa: deliberadamente DESCONECTADO do conjunto de respostas.
+  // Registrar uma resposta NÃO troca a questão exibida — o enunciado e as
+  // alternativas continuam na tela enquanto o feedback estiver aberto.
+  const [ativaId, setAtivaId] = useState<string | null>(() => {
+    const s = carregarSessao();
+    return s.fila.find((id) => !s.respostas[id]) ?? null;
+  });
+
+  const questaoAtual = useMemo(
+    () => (ativaId ? QUESTIONS.find((q) => q.id === ativaId) ?? null : null),
+    [ativaId],
+  );
+  // Próxima questão pendente da fila — usada APENAS para decidir o avanço.
+  const proximaPendente = useMemo(() => proximaQuestao(sessao.fila, respostas), [sessao.fila, respostas]);
   const concluido = questaoAtual === null;
   const erros = QUESTIONS.filter((q) => {
     const r = respostas.get(q.id);
@@ -180,14 +194,19 @@ export default function App() {
     [questaoAtual, corrigindo, respostas],
   );
 
+  // "Próxima questão" — ÚNICO lugar em que o índice ativo avança.
+  // Se não houver mais pendentes, ativaId vira null e a tela de resultados assume.
   const avancar = useCallback(() => {
+    setAtivaId(proximaPendente ? proximaPendente.id : null);
     setResultadoAtual(null);
     setLetraAtual(null);
     topoRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }, []);
+  }, [proximaPendente]);
 
   const resetar = useCallback(() => {
-    setSessao({ fila: QUESTIONS.map((q) => q.id), respostas: {}, elapsed: 0 });
+    const filaInicial = QUESTIONS.map((q) => q.id);
+    setSessao({ fila: filaInicial, respostas: {}, elapsed: 0 });
+    setAtivaId(filaInicial[0]);
     setResultadoAtual(null);
     setLetraAtual(null);
     setModalReset(false);
@@ -195,7 +214,9 @@ export default function App() {
   }, []);
 
   const revisarErros = useCallback(() => {
-    setSessao({ fila: erros.map((q) => q.id), respostas: {}, elapsed: 0 });
+    const filaErros = erros.map((q) => q.id);
+    setSessao({ fila: filaErros, respostas: {}, elapsed: 0 });
+    setAtivaId(filaErros[0] ?? null);
     setResultadoAtual(null);
     setLetraAtual(null);
     topoRef.current?.scrollIntoView({ behavior: "smooth" });
