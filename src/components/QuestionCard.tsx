@@ -249,7 +249,7 @@ export default function QuestionCard({
                   onClick={onNext}
                   className="group w-full sm:w-auto inline-flex items-center justify-center gap-2.5 rounded-lg bg-emer hover:bg-emer-deep text-ink-950 font-display font-bold text-sm px-6 py-3 transition-all duration-300 hover:shadow-[0_6px_24px_rgba(47,191,143,0.35)] active:scale-[0.98]"
                 >
-                  {ehUltima ? "Ver resultado final" : "Próxima questão"}
+                  {ehUltima ? "Ver resultado final" : "Avançar para a próxima questão"}
                   <IconArrow className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" />
                 </button>
               </div>

@@ -20,7 +20,7 @@ interface Props {
   respostas: Map<string, RespostaRegistrada>;
 }
 
-function Gauge({ acertos }: { acertos: number }) {
+export function Gauge({ acertos }: { acertos: number }) {
   const pct = Math.min(1, acertos / META_ACERTOS);
   const R = 74;
   const CIRC = Math.PI * R; // semicircunferência

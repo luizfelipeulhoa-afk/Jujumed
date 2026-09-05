@@ -64,6 +64,12 @@ export const IconArrow = ({ className }: IconProps) => (
   </svg>
 );
 
+export const IconArrowLeft = ({ className }: IconProps) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" className={base(className)}>
+    <path d="M20 12H4M10 6l-6 6 6 6" />
+  </svg>
+);
+
 export const IconTerminal = ({ className }: IconProps) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" className={base(className)}>
     <rect x="2.5" y="4" width="19" height="16" rx="2" />
@@ -103,5 +109,77 @@ export const IconDownload = ({ className }: IconProps) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" className={base(className)}>
     <path d="M12 3v11M7.5 10.5 12 15l4.5-4.5" />
     <path d="M4 17v2.5A1.5 1.5 0 0 0 5.5 21h13a1.5 1.5 0 0 0 1.5-1.5V17" />
+  </svg>
+);
+
+export const IconUpload = ({ className }: IconProps) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" className={base(className)}>
+    <path d="M12 15V4M7.5 8.5 12 4l4.5 4.5" />
+    <path d="M4 17v2.5A1.5 1.5 0 0 0 5.5 21h13a1.5 1.5 0 0 0 1.5-1.5V17" />
+  </svg>
+);
+
+export const IconNotebook = ({ className }: IconProps) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className={base(className)}>
+    <rect x="5" y="3" width="15" height="18" rx="2" />
+    <path d="M9.5 3v18M2.8 7.5H5M2.8 12H5M2.8 16.5H5" />
+    <path d="M13 8.5h4M13 12h4" />
+  </svg>
+);
+
+export const IconFileText = ({ className }: IconProps) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className={base(className)}>
+    <path d="M6 2.5h8L19 7.5v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-17a1 1 0 0 1 1-1Z" />
+    <path d="M14 2.5v5h5M9 12h6M9 15.5h6M9 8.5h2" />
+  </svg>
+);
+
+export const IconImageFile = ({ className }: IconProps) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className={base(className)}>
+    <rect x="3.5" y="4.5" width="17" height="15" rx="2" />
+    <circle cx="9" cy="10" r="1.6" />
+    <path d="m4.5 17.5 4.5-4 3.5 3 3-2.5 4 3.5" />
+  </svg>
+);
+
+export const IconTrash = ({ className }: IconProps) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className={base(className)}>
+    <path d="M4 6.5h16M9.5 6.5V4.8A1.3 1.3 0 0 1 10.8 3.5h2.4a1.3 1.3 0 0 1 1.3 1.3v1.7" />
+    <path d="M6.5 6.5 7.4 19a1.5 1.5 0 0 0 1.5 1.4h6.2A1.5 1.5 0 0 0 16.6 19l.9-12.5" />
+    <path d="M10 10.5v6M14 10.5v6" />
+  </svg>
+);
+
+export const IconCalendar = ({ className }: IconProps) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className={base(className)}>
+    <rect x="3.5" y="5" width="17" height="16" rx="2" />
+    <path d="M8 2.5V7M16 2.5V7M3.5 10.5h17" />
+    <path d="M8 14.5h3" />
+  </svg>
+);
+
+export const IconPen = ({ className }: IconProps) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className={base(className)}>
+    <path d="m14.5 5 4.5 4.5L8.5 20H4v-4.5L14.5 5Z" />
+    <path d="m12.5 7 4.5 4.5M4 20.5h9" />
+  </svg>
+);
+
+export const IconAlert = ({ className }: IconProps) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className={base(className)}>
+    <path d="M12 3.5 22 20H2L12 3.5Z" />
+    <path d="M12 10v4.5M12 17.4v.1" />
+  </svg>
+);
+
+export const IconLoader = ({ className }: IconProps) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" className={base(className)}>
+    <path d="M12 3a9 9 0 1 0 9 9" />
+  </svg>
+);
+
+export const IconSpark = ({ className }: IconProps) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" className={base(className)}>
+    <path d="M12 2c.6 4.8 2.4 7.2 8 8-5.6.8-7.4 3.2-8 8-.6-4.8-2.4-7.2-8-8 5.6-.8 7.4-3.2 8-8Z" />
   </svg>
 );
