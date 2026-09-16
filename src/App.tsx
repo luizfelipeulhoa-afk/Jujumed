@@ -3,7 +3,9 @@ import CadernoView from "./components/CadernoView";
 import DiscursivasView from "./components/DiscursivasView";
 import EcgStrip from "./components/EcgStrip";
 import Landing from "./components/Landing";
+import LoginScreen from "./components/LoginScreen";
 import PeaceBackground from "./components/PeaceBackground";
+import ProfileBadge from "./components/ProfileBadge";
 import QuestionCard from "./components/QuestionCard";
 import SiteHeader from "./components/SiteHeader";
 import Thermometer from "./components/Thermometer";
@@ -22,7 +24,16 @@ import {
 } from "./components/icons";
 import { AREAS, QUESTIONS, type AreaId } from "./data/questions";
 import { PROVA_DOMINGO, rotuloProva } from "./data/provas";
-import { carregarCaderno, salvarCaderno, type CadernoEntry } from "./lib/caderno";
+import {
+  salvarCaderno,
+  type CadernoEntry,
+} from "./lib/caderno";
+import {
+  carregarDadosPerfil,
+  salvarDadosPerfil,
+  type DadosPerfil,
+  type Perfil,
+} from "./lib/profiles";
 import {
   ERROS_TOLERADOS,
   META_ACERTOS,
@@ -35,8 +46,6 @@ import {
   type RespostaRegistrada,
   type ResultadoCheck,
 } from "./lib/tutor";
-
-const STORAGE_KEY = "tutor-uerj-medicina-v2";
 
 interface Sessao {
   fila: string[];
@@ -62,43 +71,22 @@ function sessaoPadrao(): Sessao {
   };
 }
 
-function carregarSessao(): Sessao {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      const s = JSON.parse(raw) as Partial<Sessao>;
-      if (Array.isArray(s.fila) && s.fila.length > 0) {
-        const base = sessaoPadrao();
-        return {
-          fila: s.fila,
-          respostas: s.respostas ?? {},
-          elapsed: s.elapsed ?? 0,
-          nome: s.nome ?? base.nome,
-          provaId: s.provaId ?? base.provaId,
-        };
-      }
-    }
-  } catch {
-    /* sessão corrompida → recomeça */
-  }
-  return sessaoPadrao();
-}
-
 function useHashRoute() {
-  const [rota, setRota] = useState(() => (window.location.hash || "#/").slice(1) || "/");
+  const [rota, setRota] = useState(
+    () => (window.location.hash || "#/").slice(1) || "/",
+  );
   useEffect(() => {
-    const onHash = () => setRota((window.location.hash || "#/").slice(1) || "/");
+    const onHash = () =>
+      setRota((window.location.hash || "#/").slice(1) || "/");
     window.addEventListener("hashchange", onHash);
     return () => window.removeEventListener("hashchange", onHash);
   }, []);
   const navegar = useCallback((r: string) => {
-    if (((window.location.hash || "#/").slice(1) || "/") === r) return;
+    if ((window.location.hash || "#/").slice(1) === r) return;
     window.location.hash = r;
   }, []);
   return { rota, navegar };
 }
-
-
 
 function Modal({
   titulo,
@@ -138,25 +126,67 @@ function Modal({
 
 export default function App() {
   const { rota, navegar } = useHashRoute();
-  const [sessao, setSessao] = useState<Sessao>(carregarSessao);
-  const [ativaId, setAtivaId] = useState<string | null>(() => {
-    const s = carregarSessao();
-    return proximaQuestao(s.fila, new Map(Object.entries(s.respostas)))?.id ?? null;
+
+  // ===== Sistema de perfis =====
+  const [perfilAtivo, setPerfilAtivo] = useState<Perfil | null>(() => {
+    try {
+      const id = localStorage.getItem("tutor-uerj-perfil-ativo");
+      if (id) {
+        const perfis = JSON.parse(localStorage.getItem("tutor-uerj-perfis") || "[]");
+        return perfis.find((p: Perfil) => p.id === id) || null;
+      }
+    } catch { /* ignore */ }
+    return null;
   });
+
+  const [sessao, setSessao] = useState<Sessao>(sessaoPadrao);
+  const [ativaId, setAtivaId] = useState<string | null>(null);
+  const [caderno, setCaderno] = useState<CadernoEntry[]>([]);
+
+  // Carregar dados do perfil ao logar
+  useEffect(() => {
+    if (perfilAtivo) {
+      localStorage.setItem("tutor-uerj-perfil-ativo", perfilAtivo.id);
+      const dados: DadosPerfil | null = carregarDadosPerfil(perfilAtivo.id);
+      if (dados) {
+        setSessao(dados.sessao);
+        setCaderno(dados.caderno);
+        setAtivaId(
+          proximaQuestao(
+            dados.sessao.fila,
+            new Map(Object.entries(dados.sessao.respostas)),
+          )?.id ?? null,
+        );
+      } else {
+        setSessao(sessaoPadrao());
+        setCaderno([]);
+        setAtivaId(sessaoPadrao().fila[0]);
+      }
+    }
+  }, [perfilAtivo]);
+
+  // Salvar dados do perfil sempre que mudar
+  useEffect(() => {
+    if (perfilAtivo) {
+      salvarDadosPerfil(perfilAtivo.id, { sessao, caderno });
+    }
+  }, [perfilAtivo, sessao, caderno]);
+
+  // ===== Estado do simulador =====
   const [corrigindo, setCorrigindo] = useState(false);
   const [resultadoAtual, setResultadoAtual] = useState<ResultadoCheck | null>(null);
   const [letraAtual, setLetraAtual] = useState<Letra | null>(null);
   const [modalReset, setModalReset] = useState(false);
   const [modalApi, setModalApi] = useState(false);
   const [troca, setTroca] = useState<TrocaPendente | null>(null);
-  const [caderno, setCaderno] = useState<CadernoEntry[]>(carregarCaderno);
   const topoRef = useRef<HTMLDivElement>(null);
 
-  const respostas = useMemo(() => new Map(Object.entries(sessao.respostas)), [sessao.respostas]);
+  const respostas = useMemo(
+    () => new Map(Object.entries(sessao.respostas)),
+    [sessao.respostas],
+  );
   const stats = useMemo(() => calculaEstatisticas(respostas), [respostas]);
 
-  // A questão exibida no card permanece a mesma após a resposta — o enunciado e as
-  // alternativas continuam visíveis enquanto o painel de feedback está aberto.
   const questaoAtual = useMemo(
     () => (ativaId ? QUESTIONS.find((q) => q.id === ativaId) ?? null : null),
     [ativaId],
@@ -170,7 +200,6 @@ export default function App() {
     [sessao.fila, respostas],
   );
 
-  // A rodada só termina quando o índice ativo chega ao fim (botão "Avançar").
   const concluido = ativaId === null;
 
   const erros = QUESTIONS.filter((q) => {
@@ -178,19 +207,17 @@ export default function App() {
     return r && !r.is_correct;
   });
 
-  /* cronômetro — roda apenas durante o simulador */
+  // Cronômetro
   useEffect(() => {
     if (concluido || rota !== "/prova") return;
-    const t = setInterval(() => setSessao((s) => ({ ...s, elapsed: s.elapsed + 1 })), 1000);
+    const t = setInterval(
+      () => setSessao((s) => ({ ...s, elapsed: s.elapsed + 1 })),
+      1000,
+    );
     return () => clearInterval(t);
   }, [concluido, rota]);
 
-  /* persistência */
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(sessao));
-  }, [sessao]);
-
-  /* registra a resposta (espelha POST /api/check-answer) */
+  // Responder questão
   const responder = useCallback(
     (letra: Letra) => {
       if (!questaoAtual || corrigindo || respostas.has(questaoAtual.id)) return;
@@ -222,7 +249,6 @@ export default function App() {
     [questaoAtual, corrigindo, respostas],
   );
 
-  // "Avançar para a Próxima Questão" — ÚNICO lugar em que o índice ativo avança.
   const avancar = useCallback(() => {
     setAtivaId(proximaPendente ? proximaPendente.id : null);
     setResultadoAtual(null);
@@ -238,19 +264,20 @@ export default function App() {
       setLetraAtual(null);
       setTroca(null);
       navegar("/prova");
-      window.setTimeout(() => topoRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
+      window.setTimeout(
+        () => topoRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }),
+        80,
+      );
     },
     [navegar],
   );
 
   const solicitarProva = useCallback(
     (ids: string[], nome: string, provaId: string) => {
-      // mesma rodada com progresso → apenas retoma
       if (sessao.provaId === provaId && stats.total_respondidas > 0) {
         navegar("/prova");
         return;
       }
-      // progresso em outra rodada → pede confirmação antes de zerar
       if (stats.total_respondidas > 0) {
         setTroca({ ids, nome, provaId });
         return;
@@ -303,6 +330,22 @@ export default function App() {
     [solicitarProva],
   );
 
+  const trocarPerfil = useCallback(() => {
+    setPerfilAtivo(null);
+    localStorage.removeItem("tutor-uerj-perfil-ativo");
+    navegar("/");
+  }, [navegar]);
+
+  // ===== Tela de login =====
+  if (!perfilAtivo) {
+    return (
+      <>
+        <PeaceBackground />
+        <LoginScreen onLogin={setPerfilAtivo} />
+      </>
+    );
+  }
+
   const dots = sessao.fila.map((id) => {
     const r = respostas.get(id);
     return { id, ok: r ? r.is_correct : null };
@@ -342,12 +385,15 @@ export default function App() {
                       <span className="block font-display font-extrabold text-[13.5px] leading-tight text-ink-100 truncate">
                         Rumo ao Conceito <span className="text-emer">A</span>
                       </span>
-                      <span className="block text-[10.5px] text-ink-400 truncate">{sessao.nome}</span>
+                      <span className="block text-[10.5px] text-ink-400 truncate">
+                        {sessao.nome}
+                      </span>
                     </span>
                   </span>
                 </div>
 
                 <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+                  <ProfileBadge perfil={perfilAtivo} onTrocarPerfil={trocarPerfil} />
                   <span
                     className="inline-flex items-center gap-2 rounded-lg border border-ink-700 bg-ink-850 px-3 py-2 font-mono text-sm font-bold text-ink-100 tabular-nums"
                     title="Cronômetro da sessão de estudos"
@@ -356,17 +402,9 @@ export default function App() {
                     {formatTempo(sessao.elapsed)}
                   </span>
                   <button
-                    onClick={() => setModalApi(true)}
-                    className="hidden sm:inline-flex items-center gap-2 rounded-lg border border-ink-700 bg-ink-850 px-3 py-2 text-[12px] font-semibold text-ink-300 hover:text-ink-100 hover:border-uerj-blue/60 transition-colors"
-                    title="Versão backend FastAPI (app.py)"
-                  >
-                    <IconTerminal className="w-4 h-4 text-uerj-blue" />
-                    app.py
-                  </button>
-                  <button
                     onClick={() => setModalReset(true)}
                     className="inline-flex items-center gap-2 rounded-lg border border-ink-700 bg-ink-850 px-3 py-2 text-[12px] font-semibold text-ink-300 hover:text-uerj-red hover:border-uerj-red/60 transition-colors"
-                    title="Reiniciar simulado (GET /api/reset)"
+                    title="Reiniciar simulado"
                   >
                     <IconReset className="w-4 h-4" />
                     <span className="hidden md:inline">Reiniciar</span>
@@ -397,10 +435,12 @@ export default function App() {
                   {saudacao && (
                     <div className="mb-5 rounded-xl border border-emer/30 bg-[rgba(47,191,143,0.06)] px-4 py-3.5 animate-fade-up">
                       <p className="text-[13.5px] leading-relaxed text-ink-200">
-                        <strong className="text-emer font-display">Oi, futura médica! 👋</strong> Eu sou sua tutora de
-                        plantão. Vamos treinar no padrão exato da UERJ: você responde, eu corrijo na hora, explico o
-                        porquê de cada alternativa e te entrego a dica de ouro da banca. Meta da casa:{" "}
-                        <strong className="text-ink-100">{META_ACERTOS} acertos em {TOTAL_ITENS_PROVA} itens</strong> — o
+                        <strong className="text-emer font-display">
+                          Oi, {perfilAtivo.nome}! 👋
+                        </strong>{" "}
+                        Respire fundo — você estudou muito. Vamos treinar no padrão exato da UERJ: você responde, eu
+                        corrijo na hora, explico o porquê de cada alternativa e te entrego a dica de ouro da banca.
+                        Meta da casa: <strong className="text-ink-100">{META_ACERTOS} acertos em {TOTAL_ITENS_PROVA} itens</strong> — o
                         Conceito A que vale <strong className="text-emer">+20 pontos</strong> na 2ª fase. Pode começar.
                       </p>
                     </div>
@@ -420,7 +460,6 @@ export default function App() {
                 </>
               )}
 
-              {/* tela de conclusão */}
               {concluido && (
                 <section className="animate-fade-up rounded-xl border border-ink-700 bg-ink-850 overflow-hidden">
                   <div
@@ -506,8 +545,7 @@ export default function App() {
                         <div className="sm:col-span-2 rounded-lg border border-emer/40 bg-[rgba(47,191,143,0.08)] px-4 py-3 flex items-center gap-2.5">
                           <IconCheck className="w-5 h-5 text-emer shrink-0" />
                           <p className="text-[13px] text-ink-100">
-                            <strong>Gabaritou a rodada!</strong> Nenhum erro para revisar — partiu aprofundar com mais
-                            questões.
+                            <strong>Gabaritou a rodada!</strong> Nenhum erro para revisar.
                           </p>
                         </div>
                       )}
@@ -540,6 +578,10 @@ export default function App() {
       ) : (
         <>
           <SiteHeader rota={rota} navegar={navegar} onProvaDomingo={abrirProvaDomingo} />
+          {/* Badge de perfil no header principal */}
+          <div className="fixed top-4 right-4 z-50">
+            <ProfileBadge perfil={perfilAtivo} onTrocarPerfil={trocarPerfil} />
+          </div>
           <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8 lg:py-10">
             {rota === "/discursivas" ? (
               <DiscursivasView voltar={() => navegar("/")} />
@@ -594,13 +636,11 @@ export default function App() {
         </div>
       </footer>
 
-      {/* modal reset */}
       {modalReset && (
         <Modal titulo="Reiniciar sessão de estudos" onClose={() => setModalReset(false)}>
           <p className="text-[13.5px] leading-relaxed text-ink-200 mb-4">
             Isso apaga <strong className="text-ink-100">todo o histórico</strong> desta rodada (acertos, erros,
-            cronômetro e margem) — como chamar <code className="font-mono text-uerj-blue">GET /api/reset</code>. Os
-            envios do Caderno de Erros continuam salvos. Quer mesmo recomeçar do zero?
+            cronômetro e margem). Os envios do Caderno de Erros continuam salvos. Quer mesmo recomeçar do zero?
           </p>
           <div className="flex gap-3 justify-end">
             <button
@@ -619,14 +659,12 @@ export default function App() {
         </Modal>
       )}
 
-      {/* modal troca de rodada */}
       {troca && (
         <Modal titulo="Trocar de rodada?" onClose={() => setTroca(null)}>
           <p className="text-[13.5px] leading-relaxed text-ink-200 mb-4">
             Você tem <strong className="text-ink-100">{stats.total_respondidas}</strong>{" "}
             resposta{stats.total_respondidas === 1 ? "" : "s"} na rodada atual ({sessao.nome}). Abrir{" "}
-            <strong className="text-emer">{troca.nome}</strong> vai zerar esse progresso — os envios do Caderno de
-            Erros continuam salvos.
+            <strong className="text-emer">{troca.nome}</strong> vai zerar esse progresso.
           </p>
           <div className="flex gap-3 justify-end">
             <button
@@ -645,22 +683,16 @@ export default function App() {
         </Modal>
       )}
 
-      {/* modal fastapi */}
       {modalApi && (
         <Modal titulo="Versão backend · app.py (FastAPI)" onClose={() => setModalApi(false)}>
           <p className="text-[13px] leading-relaxed text-ink-200 mb-3">
-            Este tutor também roda como aplicação Python autossuficiente, com os endpoints{" "}
-            <code className="font-mono text-uerj-blue text-[12px]">/api/next-question</code>,{" "}
-            <code className="font-mono text-uerj-blue text-[12px]">/api/check-answer</code> e{" "}
-            <code className="font-mono text-uerj-blue text-[12px]">/api/reset</code> e a mesma interface servida em{" "}
-            <code className="font-mono text-uerj-blue text-[12px]">/</code>.
+            Este tutor também roda como aplicação Python autossuficiente.
           </p>
           <div className="rounded-lg bg-ink-950 border border-ink-700 p-4 font-mono text-[12.5px] leading-relaxed mb-4">
             <div className="text-ink-400"># 1) instale as dependências</div>
             <div className="text-emer">pip install fastapi uvicorn</div>
-            <div className="text-ink-400 mt-2"># 2) rode o tutor (porta 8000)</div>
+            <div className="text-ink-400 mt-2"># 2) rode o tutor</div>
             <div className="text-emer">python app.py</div>
-            <div className="text-ink-400 mt-2"># 3) abra http://localhost:8000</div>
           </div>
           <a
             href="/app.py"
