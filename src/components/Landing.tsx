@@ -89,6 +89,9 @@ export default function Landing({
             <span className="w-1.5 h-1.5 rounded-full bg-emer animate-pulse-dot" />
             Plantão de estudos · 2º EQ UERJ
           </span>
+          <p className="text-[13px] italic text-ink-400 mb-3 font-body">
+            ✨ Respire fundo. Você estudou muito. Está no caminho certo.
+          </p>
           <h1 className="font-display font-extrabold text-[34px] sm:text-[44px] lg:text-[52px] leading-[1.06] tracking-tight text-ink-100 mb-5">
             Oi, futura médica. Você está a{" "}
             <span className="text-emer relative inline-block">

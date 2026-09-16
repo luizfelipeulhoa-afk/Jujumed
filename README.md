@@ -22,6 +22,21 @@ Paleta de cores renovada em **verde e marrom**, transmitindo:
 - 🌿 Verde: crescimento, aprovação, natureza (Biologia)
 - 🪵 Marrom: solidez, conhecimento, tradição (Química)
 
+### 🕊️ Background de Paz e Tranquilidade
+
+**Novo fundo meditativo** criado especialmente para a vestibulanda assimilar calma antes da prova:
+
+- **Mandalas sagradas** girando lentamente (rotação de 120-180 segundos)
+- **Folhas flutuando** ao vento com trajetórias variadas
+- **Partículas de brisa** se movendo suavemente pela tela
+- **Linhas ondulantes** simulando o fluxo do vento
+- **Paleta de cores suaves**: verde musgo, marrom terra, dourado suave
+
+O background foi projetado para ser **sutil e não invasivo**, permitindo total foco no conteúdo enquanto transmite uma sensação de paz e acolhimento. É um lembrete visual de que ela estudou muito e está preparada.
+
+**Mensagem de acolhimento** no topo da Landing Page:
+> ✨ Respire fundo. Você estudou muito. Está no caminho certo.
+
 ## 📋 Funcionalidades
 
 ### 1. Landing Page (`/`)

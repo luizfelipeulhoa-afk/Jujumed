@@ -3,6 +3,7 @@ import CadernoView from "./components/CadernoView";
 import DiscursivasView from "./components/DiscursivasView";
 import EcgStrip from "./components/EcgStrip";
 import Landing from "./components/Landing";
+import PeaceBackground from "./components/PeaceBackground";
 import QuestionCard from "./components/QuestionCard";
 import SiteHeader from "./components/SiteHeader";
 import Thermometer from "./components/Thermometer";
@@ -97,21 +98,7 @@ function useHashRoute() {
   return { rota, navegar };
 }
 
-function FundoAmbiente() {
-  return (
-    <>
-      <div className="fixed inset-0 -z-10 bg-ink-950" />
-      <div
-        className="fixed inset-0 -z-10 animate-glow"
-        style={{
-          background:
-            "radial-gradient(700px 380px at 12% -6%, rgba(74,124,46,0.15), transparent 60%), radial-gradient(760px 420px at 88% 8%, rgba(139,111,71,0.12), transparent 60%), radial-gradient(700px 500px at 50% 115%, rgba(212,165,116,0.08), transparent 60%)",
-        }}
-      />
-      <div className="fixed inset-0 -z-10 grid-texture" />
-    </>
-  );
-}
+
 
 function Modal({
   titulo,
@@ -327,7 +314,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen">
-      <FundoAmbiente />
+      <PeaceBackground />
 
       {noSimulador ? (
         <>
