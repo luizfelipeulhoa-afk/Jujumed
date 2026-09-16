@@ -5,24 +5,24 @@
   --font-body: "Instrument Sans", sans-serif;
   --font-mono: "JetBrains Mono", monospace;
 
-  --color-ink-950: #0c1014;
-  --color-ink-900: #10151b;
-  --color-ink-850: #141b22;
-  --color-ink-800: #182029;
-  --color-ink-700: #223041;
-  --color-ink-600: #2e4055;
-  --color-ink-400: #5d7189;
-  --color-ink-300: #8a9bb0;
-  --color-ink-200: #b9c6d6;
-  --color-ink-100: #e7edf4;
+  --color-ink-950: #1a1510;
+  --color-ink-900: #201a14;
+  --color-ink-850: #2a2218;
+  --color-ink-800: #342a1e;
+  --color-ink-700: #4a3d2e;
+  --color-ink-600: #5c4d3a;
+  --color-ink-400: #8b7a5e;
+  --color-ink-300: #b0a085;
+  --color-ink-200: #d4c4a8;
+  --color-ink-100: #f0e8d8;
 
-  --color-uerj-red: #e03a48;
-  --color-uerj-red-soft: #b93041;
-  --color-uerj-blue: #5b8def;
-  --color-uerj-teal: #3fb6ae;
-  --color-uerj-gold: #e8b54d;
-  --color-emer: #2fbf8f;
-  --color-emer-deep: #1f9c74;
+  --color-uerj-red: #6ba344;
+  --color-uerj-red-soft: #4a7c2e;
+  --color-uerj-blue: #8b6f47;
+  --color-uerj-teal: #5c3d2e;
+  --color-uerj-gold: #d4a574;
+  --color-emer: #4a7c2e;
+  --color-emer-deep: #2d5016;
 
   --animate-fade-up: fadeUp 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
   --animate-fade-in: fadeIn 0.4s ease both;

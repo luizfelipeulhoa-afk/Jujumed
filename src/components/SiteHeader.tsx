@@ -3,6 +3,7 @@ import { IconArrow, IconHeartPulse } from "./icons";
 
 const LINKS = [
   { rota: "/", label: "Início" },
+  { rota: "/discursivas", label: "Discursivas" },
   { rota: "/enviar", label: "Enviar Prova" },
   { rota: "/caderno", label: "Caderno de Erros" },
 ];

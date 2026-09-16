@@ -15,6 +15,7 @@ import {
   IconCalendar,
   IconCheck,
   IconNotebook,
+  IconPen,
   IconPulse,
   IconSpark,
   IconStar,
@@ -218,6 +219,52 @@ export default function Landing({
         </div>
 
         <div className="grid lg:grid-cols-5 gap-4">
+          {/* destaque: simulado discursivo */}
+          <article
+            className="group relative lg:col-span-3 rounded-xl border border-emer/35 bg-ink-850 overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:border-emer/70 hover:shadow-[0_18px_44px_rgba(74,124,46,0.15)]"
+          >
+            <div
+              className="absolute inset-x-0 top-0 h-[3px]"
+              style={{ background: "linear-gradient(90deg, #4a7c2e, rgba(74,124,46,0.15))" }}
+            />
+            <div className="p-6 sm:p-7">
+              <div className="flex flex-wrap items-center gap-2 mb-3">
+                <span className="inline-flex items-center gap-1.5 rounded-md bg-[rgba(74,124,46,0.15)] border border-emer/50 px-2.5 py-1 text-[10.5px] font-bold uppercase tracking-wider text-emer">
+                  <IconStar className="w-3.5 h-3.5" /> 3ª Fase · Medicina
+                </span>
+                <span className="inline-flex items-center gap-1.5 rounded-md bg-[rgba(139,111,71,0.12)] border border-uerj-blue/40 px-2.5 py-1 text-[10.5px] font-bold uppercase tracking-wider text-uerj-blue">
+                  <IconPen className="w-3.5 h-3.5" /> Discursivas com IA
+                </span>
+              </div>
+              <h3 className="font-display font-extrabold text-[24px] sm:text-[28px] leading-tight text-ink-100 mb-1.5">
+                Simulado Discursivo{" "}
+                <span className="text-emer">Biologia & Química</span>
+              </h3>
+              <p className="text-[13.5px] text-ink-300 mb-4 leading-relaxed">
+                10 questões no padrão exato da 3ª fase UERJ para Medicina. Você escreve a resposta, a{" "}
+                <strong className="text-emer">IA corrige em tempo real</strong> com nota, critérios, pontos fortes e
+                gabarito esperado. Treino de verdade para a reta final.
+              </p>
+              <div className="flex flex-wrap gap-2 mb-5">
+                {["5 Biologia", "5 Química", "Correção por IA", "Nota 0-100%", "Gabarito UERJ"].map((m) => (
+                  <span
+                    key={m}
+                    className="rounded-md bg-ink-800 border border-ink-700 px-2.5 py-1 font-mono text-[10.5px] text-ink-300"
+                  >
+                    {m}
+                  </span>
+                ))}
+              </div>
+              <button
+                onClick={() => navegar("/discursivas")}
+                className="group/btn inline-flex items-center gap-2.5 rounded-lg bg-emer hover:bg-emer-deep text-ink-950 font-display font-bold text-sm px-6 py-3 transition-all duration-300 hover:shadow-[0_8px_30px_rgba(74,124,46,0.4)] active:scale-[0.97]"
+              >
+                Começar simulado discursivo
+                <IconArrow className="w-4 h-4 transition-transform duration-300 group-hover/btn:translate-x-1" />
+              </button>
+            </div>
+          </article>
+
           {/* destaque: prova de domingo */}
           <article className="group relative lg:col-span-3 rounded-xl border border-uerj-red/35 bg-ink-850 overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:border-uerj-red/70 hover:shadow-[0_18px_44px_rgba(224,58,72,0.15)]">
             <div

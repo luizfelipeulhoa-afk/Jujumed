@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import CadernoView from "./components/CadernoView";
+import DiscursivasView from "./components/DiscursivasView";
 import EcgStrip from "./components/EcgStrip";
 import Landing from "./components/Landing";
 import QuestionCard from "./components/QuestionCard";
@@ -104,7 +105,7 @@ function FundoAmbiente() {
         className="fixed inset-0 -z-10 animate-glow"
         style={{
           background:
-            "radial-gradient(700px 380px at 12% -6%, rgba(224,58,72,0.13), transparent 60%), radial-gradient(760px 420px at 88% 8%, rgba(91,141,239,0.10), transparent 60%), radial-gradient(700px 500px at 50% 115%, rgba(47,191,143,0.07), transparent 60%)",
+            "radial-gradient(700px 380px at 12% -6%, rgba(74,124,46,0.15), transparent 60%), radial-gradient(760px 420px at 88% 8%, rgba(139,111,71,0.12), transparent 60%), radial-gradient(700px 500px at 50% 115%, rgba(212,165,116,0.08), transparent 60%)",
         }}
       />
       <div className="fixed inset-0 -z-10 grid-texture" />
@@ -553,7 +554,9 @@ export default function App() {
         <>
           <SiteHeader rota={rota} navegar={navegar} onProvaDomingo={abrirProvaDomingo} />
           <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8 lg:py-10">
-            {rota === "/enviar" ? (
+            {rota === "/discursivas" ? (
+              <DiscursivasView voltar={() => navegar("/")} />
+            ) : rota === "/enviar" ? (
               <UploadView onProcessar={processarUpload} navegar={navegar} totalEntradas={caderno.length} />
             ) : rota === "/caderno" ? (
               <CadernoView
