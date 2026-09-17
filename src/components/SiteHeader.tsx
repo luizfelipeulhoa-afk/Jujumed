@@ -27,10 +27,10 @@ export default function SiteHeader({ rota, navegar, onProvaDomingo }: Props) {
             </span>
             <span className="min-w-0 hidden sm:block">
               <span className="block font-display font-extrabold text-[15px] leading-tight text-ink-100 truncate">
-                Rumo ao Conceito <span className="text-emer">A</span>
+                Rumo à <span className="text-emer">Aprovação</span>
               </span>
               <span className="block text-[11px] text-ink-400 truncate">
-                Tutora pessoal · Medicina UERJ
+                Tutora pessoal · Reta final · Medicina UERJ
               </span>
             </span>
           </a>

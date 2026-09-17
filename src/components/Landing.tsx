@@ -54,7 +54,7 @@ const PASSOS_METODO = [
   { n: "1", titulo: "Responda", desc: "questões contextualizadas no padrão exato da UERJ.", cor: "#2fbf8f" },
   { n: "2", titulo: "Correção na hora", desc: "o porquê da certa e da sua alternativa, sem enrolação.", cor: "#5b8def" },
   { n: "3", titulo: "Caderno de Erros", desc: "cada tropeço vira cartão de revisão com Dica de Ouro.", cor: "#e8b54d" },
-  { n: "4", titulo: "Conceito A", desc: "+20 pontos de bonificação na 2ª fase de Medicina.", cor: "#e03a48" },
+  { n: "4", titulo: "Aprovação", desc: "Garanta sua vaga em Medicina na UERJ.", cor: "#e03a48" },
 ];
 
 export default function Landing({
@@ -87,25 +87,33 @@ export default function Landing({
         <div>
           <span className="inline-flex items-center gap-2 rounded-full border border-emer/40 bg-[rgba(47,191,143,0.08)] px-3 py-1.5 text-[10.5px] font-bold uppercase tracking-[0.18em] text-emer mb-5">
             <span className="w-1.5 h-1.5 rounded-full bg-emer animate-pulse-dot" />
-            Plantão de estudos · 2º EQ UERJ
+            Reta final · Exame Discursivo UERJ
           </span>
           <p className="text-[13px] italic text-ink-400 mb-3 font-body">
-            ✨ Respire fundo. Você estudou muito. Está no caminho certo.
+            ✨ Bom dia! Respire fundo. Você estudou muito. Está no caminho certo.
           </p>
           <h1 className="font-display font-extrabold text-[34px] sm:text-[44px] lg:text-[52px] leading-[1.06] tracking-tight text-ink-100 mb-5">
-            Oi, futura médica. Você está a{" "}
+            Bom dia, futura médica. As duas primeiras fases{" "}
             <span className="text-emer relative inline-block">
-              2 pontos
-              <svg viewBox="0 0 220 12" className="absolute left-0 -bottom-1.5 w-full h-2.5" preserveAspectRatio="none" aria-hidden>
-                <path d="M3 9c40-6 140-6 214-2" fill="none" stroke="#2fbf8f" strokeWidth="3" strokeLinecap="round" opacity="0.5" />
+              você já conquistou.
+              <svg viewBox="0 0 400 12" className="absolute left-0 -bottom-1.5 w-full h-2.5" preserveAspectRatio="none" aria-hidden>
+                <path d="M3 9c80-6 280-6 394-2" fill="none" stroke="#2fbf8f" strokeWidth="3" strokeLinecap="round" opacity="0.5" />
               </svg>
-            </span>{" "}
-            do Conceito A.
+            </span>
+            <br />
+            Agora só falta{" "}
+            <span className="text-uerj-gold relative inline-block">
+              uma.
+              <svg viewBox="0 0 80 12" className="absolute left-0 -bottom-1.5 w-full h-2.5" preserveAspectRatio="none" aria-hidden>
+                <path d="M3 9c20-6 50-6 74-2" fill="none" stroke="#d4a574" strokeWidth="3" strokeLinecap="round" opacity="0.5" />
+              </svg>
+            </span>
           </h1>
           <p className="text-[15px] leading-relaxed text-ink-300 max-w-xl mb-7">
-            Não é um abismo — é um ajuste fino. Responda no padrão exato da banca, receba a correção na hora com o
-            porquê de <em>cada</em> alternativa, e deixe a tutora guardar todo tropeço no seu Caderno de Erros para o
-            domingo. Eu fico com a planilha; você fica com a aprovação.
+            1º EQ? ✅ · 2º EQ? ✅. Agora é a{" "}
+            <strong className="text-ink-100">última etapa</strong>: o exame discursivo de Biologia e Química.
+            Treine no padrão exato da banca, receba a correção da IA na hora com nota real, e deixe a tutora
+            guardar cada detalhe no seu Caderno de Erros. Eu fico com a planilha; você fica com a aprovação.
           </p>
           <div className="flex flex-wrap gap-3 mb-6">
             <button

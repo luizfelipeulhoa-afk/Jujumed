@@ -58,13 +58,13 @@ export default function CadernoView({
       l: "Aproveitamento",
       v: stats.total_respondidas === 0 ? "—" : `${stats.taxa_aproveitamento.toFixed(1)}%`,
       c: "#5b8def",
-      nota: "≥ 70% = Conceito A",
+      nota: "≥ 70% = Excelente",
     },
     {
       l: "Margem de erros",
       v: `${stats.margem_erros_restantes}/${ERROS_TOLERADOS}`,
       c: margemCor,
-      nota: "máx. 17 p/ o Conceito A",
+      nota: "máx. 17 erros tolerados",
     },
   ];
 

@@ -94,7 +94,7 @@ function MargemErros({ erros }: { erros: number }) {
         })}
       </div>
       <p className="mt-2 text-[11px] leading-relaxed text-ink-400">
-        No 2º EQ (60 itens), o Conceito A admite no máximo <strong className="text-ink-200">17 erros</strong>.
+        No Exame Discursivo, cada questão vale pontos preciosos. Treine com foco e precisão.
         Cada bloco vermelho é um erro gasto.
       </p>
     </div>
@@ -145,7 +145,7 @@ export default function Thermometer({ stats, respostas }: Props) {
         <div className="flex items-center gap-2 mb-1">
           <IconTarget className="w-4 h-4 text-emer" />
           <h2 className="font-display font-bold text-sm tracking-wide text-ink-100 uppercase">
-            Termômetro do Conceito A
+            Termômetro de Progresso
           </h2>
         </div>
         <p className="text-[11px] text-ink-400 mb-2">
@@ -215,7 +215,7 @@ export default function Thermometer({ stats, respostas }: Props) {
         <BarrasArea respostas={respostas} />
         <p className="mt-3 text-[11px] text-ink-400 leading-relaxed">
           Total do treino: <strong className="text-ink-200">{QUESTIONS.length} questões</strong> no padrão dos
-          últimos 5 anos do 2º EQ · {TOTAL_ITENS_PROVA} itens na prova real.
+          últimos 5 anos da UERJ · {TOTAL_ITENS_PROVA} itens na prova real.
         </p>
       </section>
     </aside>

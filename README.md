@@ -4,6 +4,28 @@ Sistema completo de preparação para o vestibular da UERJ, com foco em Medicina
 
 ## 🆕 Novidades
 
+### 👥 Sistema de Perfis com Login
+
+**Multiusuário completo!** Cada vestibulanda tem seu próprio espaço com progresso isolado:
+
+- **Jujuba** 🌸 - Perfil principal (vermelho/rosa)
+- **Amigas da Jujuba** 👯 - Perfil compartilhado (azul)
+- **Progresso separado** - Cada perfil tem suas próprias estatísticas, caderno de erros e histórico
+- **Login visual** - Tela de seleção de perfil com cards animados
+- **Badge de perfil** - Indicador visual no header com opção de trocar de perfil
+- **Persistência** - Dados salvos automaticamente no localStorage por perfil
+
+### 🎨 Background Meditativo Aprimorado
+
+**Fundo mais moderno e animado** com efeitos visuais de clareza:
+
+- **Mandalas sagradas** girando lentamente (120-200s por rotação)
+- **Orbes de luz** (glow orbs) pulsando suavemente em 5 posições
+- **Folhas maiores e mais visíveis** (55-65px) com drop-shadow
+- **Partículas de vento** com glow effect (tamanho 4-6px com box-shadow)
+- **Linhas de brisa** mais espessas (2px) com glow
+- **Paleta verde e marrom** transmitindo natureza e tradição
+
 ### 📝 Simulado Discursivo com IA (3ª Fase)
 
 **Nova funcionalidade completa!** 10 questões discursivas no padrão exato da 3ª fase da UERJ para Medicina:
