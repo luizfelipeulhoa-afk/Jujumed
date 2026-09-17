@@ -383,7 +383,7 @@ export default function App() {
                     </span>
                     <span className="min-w-0">
                       <span className="block font-display font-extrabold text-[13.5px] leading-tight text-ink-100 truncate">
-                        Rumo ao Conceito <span className="text-emer">A</span>
+                        Rumo à <span className="text-emer">Aprovação</span>
                       </span>
                       <span className="block text-[10.5px] text-ink-400 truncate">
                         {sessao.nome}
@@ -436,12 +436,12 @@ export default function App() {
                     <div className="mb-5 rounded-xl border border-emer/30 bg-[rgba(47,191,143,0.06)] px-4 py-3.5 animate-fade-up">
                       <p className="text-[13.5px] leading-relaxed text-ink-200">
                         <strong className="text-emer font-display">
-                          Oi, {perfilAtivo.nome}! 👋
+                          Bom dia, {perfilAtivo.nome}! 🌅
                         </strong>{" "}
-                        Respire fundo — você estudou muito. Vamos treinar no padrão exato da UERJ: você responde, eu
-                        corrijo na hora, explico o porquê de cada alternativa e te entrego a dica de ouro da banca.
-                        Meta da casa: <strong className="text-ink-100">{META_ACERTOS} acertos em {TOTAL_ITENS_PROVA} itens</strong> — o
-                        Conceito A que vale <strong className="text-emer">+20 pontos</strong> na 2ª fase. Pode começar.
+                        Você já passou pelas duas primeiras fases — 1º EQ e 2º EQ — com brilhantismo. Agora é a reta
+                        final: o exame discursivo. Respire fundo e vamos treinar no padrão exato da UERJ: você
+                        responde, eu corrijo na hora, explico o porquê de cada alternativa e te entrego a dica de ouro
+                        da banca. <strong className="text-ink-100">Só falta uma fase. E você vai conquistar essa também.</strong>
                       </p>
                     </div>
                   )}
@@ -495,8 +495,8 @@ export default function App() {
                       {stats.projecao_conceito === "A"
                         ? "“É esse aproveitamento que separa quem SONHA com Medicina de quem ASSINA a lista de aprovados. Orgulho define.”"
                         : stats.projecao_conceito === "B"
-                          ? "“Você está a um ajuste fino do Conceito A. Os erros de hoje são o mapa exato do que revisar.”"
-                          : "“Todo conceito A começou exatamente aqui: errando no treino e entendendo o porquê. Bora transformar isso em aprovação?”"}
+                          ? "“Você está a um ajuste fino da aprovação. Os erros de hoje são o mapa exato do que revisar.”"
+                          : "“Toda aprovação começou exatamente aqui: errando no treino e entendendo o porquê. Bora transformar isso em aprovação?”"}
                     </p>
                   </div>
 
@@ -623,8 +623,7 @@ export default function App() {
       <footer className="border-t border-ink-800 mt-10">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-5 flex flex-wrap items-center justify-between gap-3 text-[11.5px] text-ink-400">
           <span>
-            Treino focado no 2º EQ da UERJ · {QUESTIONS.length} questões contextualizadas · Meta: {META_ACERTOS}/
-            {TOTAL_ITENS_PROVA} para o Conceito A (+20 pts)
+            Treino focado na reta final da UERJ · {QUESTIONS.length} questões contextualizadas · Exame discursivo de Medicina
           </span>
           <button
             onClick={() => setModalApi(true)}

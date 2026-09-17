@@ -66,8 +66,8 @@ export default function LoginScreen({ onLogin }: Props) {
             <IconHeartPulse className="w-10 h-10 text-ink-100" />
           </div>
           <h1 className="font-display font-extrabold text-5xl md:text-6xl text-ink-100 mb-4 tracking-tight">
-            Rumo ao Conceito{" "}
-            <span className="text-emer inline-block animate-glow">A</span>
+            Rumo à{" "}
+            <span className="text-emer inline-block animate-glow">Aprovação</span>
           </h1>
           <p className="text-ink-300 text-lg md:text-xl max-w-2xl mx-auto leading-relaxed">
             Escolha seu perfil para continuar sua jornada rumo à Medicina na UERJ
