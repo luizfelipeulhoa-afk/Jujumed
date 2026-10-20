@@ -289,7 +289,7 @@ export default function TutorBot({
           type="button"
           onClick={() => setAberto(true)}
           aria-label="Abrir JujuBot"
-          className="jujubot-launcher fixed bottom-5 right-5 z-40 flex h-[76px] w-[76px] items-center justify-center rounded-full border border-[#8fe9db]/60 bg-[#101820] shadow-xl shadow-[#48b8a6]/20 transition hover:scale-105"
+          className="jujubot-launcher fixed bottom-5 right-5 z-[60] flex h-[76px] w-[76px] items-center justify-center rounded-full border border-[#8fe9db]/60 bg-[#101820] shadow-xl shadow-[#48b8a6]/20 transition hover:scale-105"
         >
           <JujubotEye pequeno />
           <span className="absolute -bottom-1 -right-1 rounded-full border-2 border-ink-950 bg-[#d4a574] p-1.5 text-ink-950">
@@ -299,7 +299,7 @@ export default function TutorBot({
       )}
 
       {estaAberto && (
-        <section className="jujubot-panel fixed bottom-4 right-4 z-50 flex h-[min(690px,calc(100dvh-2rem))] w-[min(430px,calc(100vw-2rem))] flex-col overflow-hidden rounded-[28px] border border-[#52697b]/70 bg-[#111a24] shadow-2xl shadow-black/50" aria-label="Conversa com a JujuBot">
+        <section className="jujubot-panel fixed bottom-4 right-4 z-[60] flex h-[min(690px,calc(100dvh-2rem))] w-[min(430px,calc(100vw-2rem))] flex-col overflow-hidden rounded-[28px] border border-[#52697b]/70 bg-[#111a24] shadow-2xl shadow-black/50" aria-label="Conversa com a JujuBot">
           <header className="flex items-center gap-3 border-b border-white/10 bg-[#182431] px-4 py-3.5">
             <JujubotEye pequeno falando={falando} />
             <div className="min-w-0 flex-1">
