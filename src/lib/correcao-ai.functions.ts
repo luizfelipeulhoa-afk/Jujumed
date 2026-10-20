@@ -57,21 +57,12 @@ export const corrigirDiscursivaIA = createServerFn({ method: "POST" })
       };
     }
 
-    const apiKey = process.env['LOVABLE_API_KEY'];
-    if (!apiKey) throw new Error("A correção inteligente não está configurada.");
-    const [{ createOpenAI }, { streamText }, { createRunIdFetch }] = await Promise.all([
-      import("@ai-sdk/openai"), import("ai"), import("./run-id.server"),
+    const [{ streamText }, { getConfiguredAiModel }] = await Promise.all([
+      import("ai"), import("./ai-provider.server"),
     ]);
-    const provider = createOpenAI({
-      baseURL: "https://ai.gateway.lovable.dev/v1",
-      apiKey,
-      headers: { "Lovable-API-Key": apiKey, "X-Lovable-AIG-SDK": "vercel-ai-sdk" },
-      fetch: createRunIdFetch(),
-    });
     const rubric = questao.criterios.map((c) => `- ${c.descricao}: 0 a ${c.pontos} ponto(s)`).join("\n");
     const result = streamText({
-      model: provider.responses("openai/gpt-6-astra"),
-      providerOptions: { openai: { forceReasoning: true, reasoningEffort: "medium", reasoningSummary: "auto", store: false, include: ["reasoning.encrypted_content"] } },
+      model: getConfiguredAiModel(),
       messages: [
         { role: "system", content: "Você é avaliador rigoroso do Exame Discursivo DSEA/UERJ. Avalie somente conhecimento demonstrado em frases coerentes. Não dê pontos a contradições, afirmações cientificamente falsas nem listas desconexas de palavras-chave. Responda exclusivamente com JSON válido, sem markdown." },
         { role: "user", content: `QUESTÃO: ${questao.comando}\nAPOIO: ${questao.apoio}\nPADRÃO ESPERADO DSEA: ${questao.padraoDsea}\nRUBRICA:\n${rubric}\nRESPOSTA DA ALUNA:\n${data.resposta}\n\nRetorne JSON com: criterios (array com descricao,maximo,obtido,justificativa), pontosFortes (array), faltouParaNotaMaxima (array), comparacaoDsea (string), feedback (string). A soma de obtido não pode exceder ${questao.pontuacaoMaxima}.` },
