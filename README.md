@@ -33,9 +33,10 @@ Essas variáveis são necessárias para a JujuBot e para a correção inteligent
 
 ## Publicar no Cloudflare Workers
 
-1. Conecte este repositório a uma conta Cloudflare e instale as dependências com `bun install`.
-2. Configure `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY` como variáveis de build. Configure `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SERVICE_ROLE_KEY` e `AI_*` no ambiente do Worker; marque as chaves privadas como secrets.
-3. Execute `bun run deploy` localmente após `bunx wrangler login`, ou configure o Cloudflare para construir com `bun run build` e publicar com `bunx wrangler deploy`.
-4. No Supabase, atualize a lista de URLs permitidas para incluir o domínio do Worker.
+1. No Cloudflare, crie um Worker e conecte este repositório GitHub. A branch de produção é `main`; a configuração Wrangler está em `wrangler.jsonc` e o nome do Worker é `jujamed`.
+2. Configure o comando de build como `bun run build` e o de deploy como `bunx wrangler deploy`.
+3. Configure `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY` como variáveis de build. Configure `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SERVICE_ROLE_KEY` e `AI_*` no ambiente do Worker; marque as chaves privadas como secrets.
+4. Para publicar pela sua máquina, execute `bun install`, `bunx wrangler login` e `bun run deploy`.
+5. No Supabase, atualize a lista de URLs permitidas para incluir o domínio do Worker.
 
 O backend Supabase continua no projeto já existente. Migrar o site não copia nem apaga dados. Para testar localmente, crie `.env.local` com as variáveis e mantenha os secrets fora do Git.
