@@ -6,42 +6,21 @@ import LoginScreen from "./components/LoginScreen";
 import PeaceBackground from "./components/PeaceBackground";
 import ProfileBadge from "./components/ProfileBadge";
 import SiteHeader from "./components/SiteHeader";
-import TutorBot from "./components/TutorBot";
 import UploadView from "./components/UploadView";
-import type { Questao2027 } from "./data/exame2027";
 import type { CadernoEntry, RevisaoErro } from "./lib/caderno";
 import { salvarCaderno } from "./lib/caderno";
 import type { NotasCadernos } from "./lib/exame2027";
 import { carregarDadosPerfil, salvarDadosPerfil, type DadosPerfil, type Perfil } from "./lib/profiles";
 import type { RespostaRegistrada } from "./lib/tutor";
 
-interface SessaoLegada {
-  fila: string[];
-  respostas: Record<string, RespostaRegistrada>;
-  elapsed: number;
-  nome: string;
-  provaId: string;
-}
+interface SessaoLegada { fila: string[]; respostas: Record<string, RespostaRegistrada>; elapsed: number; nome: string; provaId: string; }
 const notasVazias = (): NotasCadernos => ({ biologia: null, quimica: null, redacao: null });
-const sessaoVazia = (): SessaoLegada => ({
-  fila: [],
-  respostas: {},
-  elapsed: 0,
-  nome: "Exame Discursivo UERJ 2027",
-  provaId: "discursivo-2027",
-});
+const sessaoVazia = (): SessaoLegada => ({ fila: [], respostas: {}, elapsed: 0, nome: "Exame Discursivo UERJ 2027", provaId: "discursivo-2027" });
 
 function useHashRoute() {
   const [rota, setRota] = useState("/");
-  useEffect(() => {
-    const atualizar = () => setRota((window.location.hash || "#/").slice(1) || "/");
-    atualizar();
-    window.addEventListener("hashchange", atualizar);
-    return () => window.removeEventListener("hashchange", atualizar);
-  }, []);
-  const navegar = useCallback((destino: string) => {
-    window.location.hash = destino;
-  }, []);
+  useEffect(() => { const atualizar = () => setRota((window.location.hash || "#/").slice(1) || "/"); atualizar(); window.addEventListener("hashchange", atualizar); return () => window.removeEventListener("hashchange", atualizar); }, []);
+  const navegar = useCallback((destino: string) => { window.location.hash = destino; }, []);
   return { rota, navegar };
 }
 
@@ -51,18 +30,13 @@ export default function App() {
   const [caderno, setCaderno] = useState<CadernoEntry[]>([]);
   const [notas, setNotas] = useState<NotasCadernos>(notasVazias);
   const [revisoes, setRevisoes] = useState<RevisaoErro[]>([]);
-  const [questaoAtiva, setQuestaoAtiva] = useState<Questao2027 | null>(null);
-  const [botAberto, setBotAberto] = useState(false);
-  const [perguntaBot, setPerguntaBot] = useState<string | null>(null);
 
   useEffect(() => {
     try {
       const id = localStorage.getItem("tutor-uerj-perfil-ativo");
       const perfis = JSON.parse(localStorage.getItem("tutor-uerj-perfis") || "[]") as Perfil[];
       setPerfil(perfis.find((item) => item.id === id) ?? null);
-    } catch {
-      setPerfil(null);
-    }
+    } catch { setPerfil(null); }
   }, []);
 
   useEffect(() => {
@@ -80,88 +54,16 @@ export default function App() {
     salvarDadosPerfil(perfil.id, dados);
   }, [perfil, caderno, notas, revisoes]);
 
-  const processarUpload = (entry: CadernoEntry) =>
-    setCaderno((atual) => {
-      const novo = [entry, ...atual];
-      salvarCaderno(novo);
-      return novo;
-    });
-  const adicionarRevisao = (revisao: RevisaoErro) =>
-    setRevisoes((atual) => [
-      revisao,
-      ...atual.filter((item) => item.questaoId !== revisao.questaoId || item.concluidaEm),
-    ]);
-  const concluirRevisao = (id: string) =>
-    setRevisoes((atual) =>
-      atual.map((item) => (item.id === id ? { ...item, concluidaEm: new Date().toISOString() } : item)),
-    );
-  const trocarPerfil = () => {
-    localStorage.removeItem("tutor-uerj-perfil-ativo");
-    setPerfil(null);
-    navegar("/");
-  };
+  const processarUpload = (entry: CadernoEntry) => setCaderno((atual) => { const novo = [entry, ...atual]; salvarCaderno(novo); return novo; });
+  const adicionarRevisao = (revisao: RevisaoErro) => setRevisoes((atual) => [revisao, ...atual.filter((item) => item.questaoId !== revisao.questaoId || item.concluidaEm)]);
+  const concluirRevisao = (id: string) => setRevisoes((atual) => atual.map((item) => item.id === id ? { ...item, concluidaEm: new Date().toISOString() } : item));
+  const trocarPerfil = () => { localStorage.removeItem("tutor-uerj-perfil-ativo"); setPerfil(null); navegar("/"); };
 
-  const abrirBotComPergunta = (pergunta?: string) => {
-    setBotAberto(true);
-    if (pergunta) setPerguntaBot(pergunta);
-  };
+  if (!perfil) return <><PeaceBackground/><LoginScreen onLogin={setPerfil}/></>;
 
-  if (!perfil)
-    return (
-      <>
-        <PeaceBackground />
-        <LoginScreen onLogin={setPerfil} />
-      </>
-    );
-
-  return (
-    <div className="min-h-screen">
-      <PeaceBackground />
-      <SiteHeader
-        rota={rota}
-        navegar={navegar}
-        onExame={() => navegar("/discursivas")}
-        onAbrirBot={() => abrirBotComPergunta()}
-      />
-      <div className="fixed right-4 top-[76px] z-30">
-        <ProfileBadge perfil={perfil} onTrocarPerfil={trocarPerfil} />
-      </div>
-      <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:py-10">
-        {rota === "/discursivas" || rota === "/prova" ? (
-          <DiscursivasView
-            voltar={() => navegar("/")}
-            notas={notas}
-            onNotas={setNotas}
-            onRevisao={adicionarRevisao}
-            onQuestaoAtivaChange={setQuestaoAtiva}
-            onPerguntarBot={(p) => abrirBotComPergunta(p)}
-          />
-        ) : rota === "/enviar" ? (
-          <UploadView onProcessar={processarUpload} navegar={navegar} totalEntradas={caderno.length} />
-        ) : rota === "/caderno" ? (
-          <CadernoView revisoes={revisoes} onConcluir={concluirRevisao} navegar={navegar} />
-        ) : (
-          <Landing
-            conceitoEQ={perfil.conceitoEQ ?? null}
-            notas={notas}
-            revisoes={revisoes}
-            navegar={navegar}
-            onAbrirBot={(p) => abrirBotComPergunta(p)}
-          />
-        )}
-      </main>
-      <TutorBot
-        questaoAtiva={questaoAtiva}
-        abertoExternamente={botAberto}
-        onFecharExterno={() => setBotAberto(false)}
-        perguntaInicial={perguntaBot}
-        onLimparPerguntaInicial={() => setPerguntaBot(null)}
-      />
-      <footer className="mt-10 border-t border-ink-800">
-        <div className="mx-auto max-w-6xl px-4 py-5 text-xs text-ink-400">
-          Preparação focada no Exame Discursivo de Medicina · UERJ 2027 · 10 Bio (Peso 2) + 10 Química + 1 Redação/semana
-        </div>
-      </footer>
-    </div>
-  );
+  return <div className="min-h-screen"><PeaceBackground/><SiteHeader rota={rota} navegar={navegar} onExame={() => navegar("/discursivas")}/><div className="fixed right-4 top-[76px] z-30"><ProfileBadge perfil={perfil} onTrocarPerfil={trocarPerfil}/></div><main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:py-10">
+    {rota === "/discursivas" || rota === "/prova" ? <DiscursivasView voltar={() => navegar("/")} notas={notas} onNotas={setNotas} onRevisao={adicionarRevisao}/>
+      : rota === "/enviar" ? <UploadView onProcessar={processarUpload} navegar={navegar} totalEntradas={caderno.length}/>
+      : rota === "/caderno" ? <CadernoView revisoes={revisoes} onConcluir={concluirRevisao} navegar={navegar}/>
+      : <Landing conceitoEQ={perfil.conceitoEQ ?? null} notas={notas} revisoes={revisoes} navegar={navegar}/>}</main><footer className="mt-10 border-t border-ink-800"><div className="mx-auto max-w-6xl px-4 py-5 text-xs text-ink-400">Preparação focada no Exame Discursivo de Medicina · UERJ 2027</div></footer></div>;
 }
