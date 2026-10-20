@@ -76,6 +76,7 @@ export const PROPOSTA_REDACAO: Questao2027 = {
 };
 
 export const CADERNOS_2027 = { biologia: bio, quimica, redacao: [PROPOSTA_REDACAO] };
+export const TODAS_QUESTOES_2027: Questao2027[] = [...CADERNOS_2027.biologia, ...CADERNOS_2027.quimica, ...CADERNOS_2027.redacao];
 
 export const GUIA_O_BEM_AMADO = {
   obra: "O bem-amado",

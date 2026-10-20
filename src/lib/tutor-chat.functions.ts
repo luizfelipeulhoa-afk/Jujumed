@@ -21,7 +21,7 @@ export const conversarComJuju = createServerFn({ method: "POST" })
       ? TODAS_QUESTOES_2027.find((item) => item.id === data.questaoId)
       : undefined;
     const contexto = questao
-      ? `Questão atual (${questao.disciplina}, semana ${questao.semanaId}): ${questao.tema}.\nComando: ${questao.comando}\nPadrão de conteúdo: ${questao.padraoDsea}`
+      ? `Questão atual (${questao.disciplina}): ${questao.tema}.\nComando: ${questao.comando}\nPadrão de conteúdo: ${questao.padraoDsea}`
       : "A estudante não está com uma questão específica aberta.";
 
     const [{ createOpenAI }, { generateText }, { createRunIdFetch }] = await Promise.all([
