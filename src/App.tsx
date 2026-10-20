@@ -111,6 +111,13 @@ export default function App() {
       <>
         <PeaceBackground />
         <LoginScreen onLogin={setPerfil} />
+        <TutorBot
+          questaoAtiva={null}
+          abertoExternamente={botAberto}
+          onFecharExterno={() => setBotAberto(false)}
+          perguntaInicial={perguntaBot}
+          onLimparPerguntaInicial={() => setPerguntaBot(null)}
+        />
       </>
     );
 
