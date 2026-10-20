@@ -54,7 +54,9 @@ const ACOLHIMENTOS = [
 ];
 
 function pick<T>(arr: T[], seed: number): T {
-  return arr[seed % arr.length];
+  const value = arr[seed % arr.length];
+  if (value === undefined) throw new Error("Não há mensagens disponíveis.");
+  return value;
 }
 
 function seedFrom(id: string, letra: Letra): number {

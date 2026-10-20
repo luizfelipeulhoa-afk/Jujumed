@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { Perfil } from "../lib/profiles";
+import { bonusDoConceito } from "../lib/exame2027";
 
 interface Props {
   perfil: Perfil;
@@ -60,6 +61,9 @@ export default function ProfileBadge({ perfil, onTrocarPerfil }: Props) {
                   {perfil.nome}
                 </span>
               </div>
+            </div>
+            <div className="px-4 py-2.5 border-b border-ink-700 text-[11px] text-ink-300">
+              {perfil.conceitoEQ ? `Conceito ${perfil.conceitoEQ} · bônus ${bonusDoConceito(perfil.conceitoEQ)} pts` : "Aguardando Diagnóstico"}
             </div>
             <button
               onClick={() => {

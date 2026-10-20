@@ -1,31 +1,21 @@
-import { useState } from "react";
-import type { QuestaoDiscursiva } from "../data/discursivas";
-import { corrigirResposta, type ResultadoCorrecao } from "../lib/corretor";
-import {
-  IconArrow,
-  IconCheck,
-  IconCross,
-  IconPen,
-  IconStar,
-  IconTarget,
-} from "./icons";
-
-const DISCIPLINA_COR = {
-  biologia: { cor: "#4a7c2e", corSoft: "rgba(74,124,46,0.14)" },
-  quimica: { cor: "#8b6f47", corSoft: "rgba(139,111,71,0.14)" },
-};
+import type { Questao2027 } from "../data/exame2027";
+import type { ResultadoCorrecaoIA } from "../lib/correcao-ai.functions";
+import { PESO_DISCIPLINA, rotuloDisciplina } from "../lib/exame2027";
+import { IconAlert, IconArrow, IconCheck, IconCross, IconSpark, IconStar, IconStetho, IconTarget } from "./icons";
 
 interface Props {
-  questao: QuestaoDiscursiva;
+  questao: Questao2027;
   ordem: number;
   total: number;
-  resultado: ResultadoCorrecao | null;
+  resultado: ResultadoCorrecaoIA | null;
   resposta: string;
   onResponder: (resposta: string) => void;
   onCorrigir: () => void;
+  onRefazer?: () => void;
   onNext: () => void;
+  onPerguntarBot?: (pergunta: string) => void;
   corrigindo: boolean;
-  ehUltima: boolean;
+  erro: string | null;
 }
 
 export default function DiscursiveCard({
@@ -36,305 +26,248 @@ export default function DiscursiveCard({
   resposta,
   onResponder,
   onCorrigir,
+  onRefazer,
   onNext,
+  onPerguntarBot,
   corrigindo,
-  ehUltima,
+  erro,
 }: Props) {
-  const [mostrarGabarito, setMostrarGabarito] = useState(false);
-  const disciplina = DISCIPLINA_COR[questao.disciplina];
-  const respondida = resultado !== null;
-
-  const conceitoCor = {
-    A: "#4a7c2e",
-    B: "#6ba344",
-    C: "#d4a574",
-    D: "#8b6f47",
-    E: "#5c3d2e",
-  }[resultado?.conceito ?? "E"];
+  const palavras = resposta.trim().split(/\s+/).filter(Boolean).length;
+  const linhas = resposta.split("\n").filter((linha) => linha.trim()).length;
+  const peso = PESO_DISCIPLINA[questao.disciplina];
+  const notaPonderada = resultado ? resultado.nota * peso : 0;
+  const maxPonderada = questao.pontuacaoMaxima * peso;
 
   return (
-    <article className="animate-fade-up">
-      {/* cabeçalho */}
-      <div className="flex items-center gap-2 mb-4 flex-wrap">
-        <span className="font-mono text-[11px] text-ink-400 uppercase tracking-widest">
-          Questão discursiva {ordem} / {total}
-        </span>
-      </div>
-
-      <section className="rounded-xl border border-ink-700 bg-ink-850 overflow-hidden">
-        {/* cabeçalho da questão */}
-        <div
-          className="px-5 sm:px-6 py-3.5 flex items-center justify-between gap-3 border-b border-ink-700"
-          style={{ background: `linear-gradient(90deg, ${disciplina.corSoft}, transparent 65%)` }}
-        >
-          <span
-            className="inline-flex items-center gap-2 rounded-md px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider"
-            style={{
-              color: disciplina.cor,
-              background: disciplina.corSoft,
-              border: `1px solid ${disciplina.cor}44`,
-            }}
-          >
-            <IconPen className="w-3.5 h-3.5" />
-            {questao.disciplina === "biologia" ? "Biologia" : "Química"} · {questao.tema}
+    <article className="rounded-xl border border-ink-700 bg-ink-850 overflow-hidden animate-fade-up">
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-ink-700 bg-ink-800 px-5 py-4">
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-emer">
+            {rotuloDisciplina(questao.disciplina)} · Questão {ordem}/{total} · Peso {peso}
+          </p>
+          <h2 className="mt-1 font-display text-xl font-extrabold text-ink-100">{questao.tema}</h2>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="rounded-lg border border-uerj-gold/40 bg-uerj-gold/10 px-3 py-1.5 font-mono text-xs font-bold text-uerj-gold">
+            Vale {questao.pontuacaoMaxima.toFixed(1)} pts
+            {peso > 1 ? ` (×${peso} = ${maxPonderada.toFixed(1)} pts na nota final)` : ""}
           </span>
-          <span className="font-mono text-[11px] text-ink-400 hidden sm:block">{questao.subtema}</span>
         </div>
+      </header>
 
-        <div className="px-5 sm:px-6 py-5">
-          {/* apoio */}
-          {questao.apoio && (
-            <blockquote
-              className="mb-4 rounded-r-lg border-l-[3px] bg-ink-800/70 px-4 py-3 text-[13.5px] leading-relaxed text-ink-200 italic"
-              style={{ borderColor: disciplina.cor }}
-            >
-              {questao.apoio.texto}
-              <footer className="mt-2 text-[11px] not-italic font-mono text-ink-400">
-                — {questao.apoio.fonte}
-              </footer>
-            </blockquote>
-          )}
+      <div className="p-5 sm:p-6 space-y-5">
+        <blockquote className="border-l-[3px] border-uerj-blue bg-ink-800 px-4 py-3 text-sm leading-relaxed text-ink-200">
+          {questao.apoio}
+        </blockquote>
 
-          {/* comando */}
-          <div className="mb-5 rounded-lg border border-ink-700 bg-ink-800 p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="w-4 h-4 flex items-center justify-center" style={{ color: disciplina.cor }}>
-                <IconTarget className="w-4 h-4" />
-              </span>
-              <h3 className="text-[11px] font-bold uppercase tracking-[0.14em] text-ink-300">
-                Comando da questão
-              </h3>
-            </div>
-            <p className="text-[14.5px] leading-relaxed text-ink-100 font-medium">{questao.comando}</p>
-          </div>
-
-          {/* textarea para resposta */}
-          {!respondida && (
-            <div className="mb-5">
-              <label
-                htmlFor={`resposta-${questao.id}`}
-                className="block text-[12px] font-bold uppercase tracking-[0.12em] text-ink-300 mb-2"
-              >
-                Sua resposta
-              </label>
-              <textarea
-                id={`resposta-${questao.id}`}
-                rows={8}
-                value={resposta}
-                onChange={(e) => onResponder(e.target.value)}
-                disabled={corrigindo}
-                placeholder="Escreva sua resposta completa aqui. Seja clara, use terminologia científica e cite os conceitos-chave..."
-                className="w-full rounded-lg border border-ink-700 bg-ink-800 px-4 py-3 text-[13.5px] leading-relaxed text-ink-100 placeholder:text-ink-400/70 focus:outline-none focus:border-ink-600 focus:ring-2 focus:ring-ink-600/20 transition-all resize-none disabled:opacity-50"
-              />
-              <div className="flex justify-between text-[11px] text-ink-400 mt-1">
-                <span>
-                  {resposta.split(/\s+/).filter(Boolean).length} palavras ·{" "}
-                  {resposta.length} caracteres
-                </span>
-                <span>Dica: seja completa e cite os conceitos-chave</span>
-              </div>
-            </div>
-          )}
-
-          {/* botão corrigir */}
-          {!respondida && (
-            <button
-              onClick={onCorrigir}
-              disabled={corrigindo || resposta.trim().length < 50}
-              className="group inline-flex items-center gap-2.5 rounded-lg bg-emer hover:bg-emer-deep disabled:opacity-50 disabled:cursor-not-allowed text-ink-950 font-display font-bold text-sm px-6 py-3 transition-all duration-300 hover:shadow-[0_6px_24px_rgba(74,124,46,0.35)] active:scale-[0.97]"
-            >
-              {corrigindo ? (
-                <>
-                  <span className="w-4 h-4 border-2 border-ink-950 border-t-transparent rounded-full animate-spin" />
-                  Corrigindo...
-                </>
-              ) : (
-                <>
-                  <IconTarget className="w-4 h-4" />
-                  Corrigir com IA
-                </>
-              )}
-            </button>
-          )}
-        </div>
-
-        {/* painel de feedback (retrátil) */}
-        {respondida && resultado && (
-          <div className="border-t border-ink-700 bg-ink-900/70 px-5 sm:px-6 py-5 space-y-5 animate-panel-in">
-            {/* nota e conceito */}
-            <div className="flex items-center gap-4">
-              <div
-                className="shrink-0 w-20 h-20 rounded-xl flex flex-col items-center justify-center"
-                style={{
-                  background: `${conceitoCor}1a`,
-                  border: `2px solid ${conceitoCor}`,
-                }}
-              >
-                <div className="font-mono text-2xl font-bold" style={{ color: conceitoCor }}>
-                  {resultado.notaPercentual}%
-                </div>
-                <div
-                  className="font-display text-xs font-bold uppercase tracking-wider"
-                  style={{ color: conceitoCor }}
-                >
-                  Conceito {resultado.conceito}
-                </div>
-              </div>
-              <div className="flex-1">
-                <h3 className="font-display font-extrabold text-lg text-ink-100 mb-1">
-                  Correção da IA
-                </h3>
-                <p className="text-[13.5px] leading-relaxed text-ink-200">{resultado.feedback}</p>
-              </div>
-            </div>
-
-            {/* critérios avaliados */}
-            <div>
-              <h4 className="text-[11px] font-bold uppercase tracking-[0.14em] text-ink-300 mb-3">
-                Critérios avaliados
-              </h4>
-              <div className="space-y-2.5">
-                {resultado.criteriosAvaliados.map((c, i) => (
-                  <div
-                    key={i}
-                    className={`rounded-lg border p-3 ${
-                      c.atingido
-                        ? "border-emer/40 bg-[rgba(74,124,46,0.08)]"
-                        : "border-uerj-red-soft/40 bg-[rgba(92,61,46,0.08)]"
-                    }`}
-                  >
-                    <div className="flex items-start gap-2 mb-1.5">
-                      {c.atingido ? (
-                        <IconCheck className="w-4 h-4 text-emer shrink-0 mt-0.5" />
-                      ) : (
-                        <IconCross className="w-4 h-4 text-uerj-red shrink-0 mt-0.5" />
-                      )}
-                      <div className="flex-1">
-                        <p className="text-[13px] text-ink-200 leading-snug">{c.descricao}</p>
-                        <div className="flex items-center gap-2 mt-1.5">
-                          <span className="font-mono text-[10.5px] text-ink-400">
-                            Peso: {(c.peso * 100).toFixed(0)}%
-                          </span>
-                          <span className="font-mono text-[10.5px]" style={{ color: c.atingido ? "#4a7c2e" : "#8b6f47" }}>
-                            Nota: {(c.pontuacao * 100).toFixed(0)}%
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                    {c.palavrasEncontradas.length > 0 && (
-                      <div className="ml-6 mt-2">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-emer">
-                          Encontrado:
-                        </span>
-                        <div className="flex flex-wrap gap-1 mt-1">
-                          {c.palavrasEncontradas.map((p) => (
-                            <span
-                              key={p}
-                              className="rounded bg-emer/20 px-1.5 py-0.5 font-mono text-[10px] text-emer"
-                            >
-                              {p}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    {c.palavrasFaltantes.length > 0 && !c.atingido && (
-                      <div className="ml-6 mt-2">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-uerj-red">
-                          Faltou:
-                        </span>
-                        <div className="flex flex-wrap gap-1 mt-1">
-                          {c.palavrasFaltantes.slice(0, 5).map((p) => (
-                            <span
-                              key={p}
-                              className="rounded bg-uerj-red/20 px-1.5 py-0.5 font-mono text-[10px] text-uerj-red"
-                            >
-                              {p}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* pontos fortes e a melhorar */}
-            <div className="grid sm:grid-cols-2 gap-3">
-              {resultado.pontosFortes.length > 0 && (
-                <div className="rounded-lg border border-emer/40 bg-[rgba(74,124,46,0.08)] p-3.5">
-                  <h4 className="text-[10px] font-bold uppercase tracking-[0.14em] text-emer mb-2">
-                    Pontos fortes
-                  </h4>
-                  <ul className="space-y-1.5">
-                    {resultado.pontosFortes.map((p, i) => (
-                      <li key={i} className="text-[12px] text-ink-200 leading-snug">
-                        {p}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              {resultado.pontosAMelhorar.length > 0 && (
-                <div className="rounded-lg border border-uerj-red-soft/40 bg-[rgba(92,61,46,0.08)] p-3.5">
-                  <h4 className="text-[10px] font-bold uppercase tracking-[0.14em] text-uerj-red mb-2">
-                    Pontos a melhorar
-                  </h4>
-                  <ul className="space-y-1.5">
-                    {resultado.pontosAMelhorar.map((p, i) => (
-                      <li key={i} className="text-[12px] text-ink-200 leading-snug">
-                        {p}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-
-            {/* gabarito esperado */}
-            <div>
+        <div>
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <span className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.14em] text-ink-300">
+              <IconTarget className="h-4 w-4 text-emer" /> Comando da Questão
+            </span>
+            {onPerguntarBot && (
               <button
-                onClick={() => setMostrarGabarito(!mostrarGabarito)}
-                className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.14em] text-ink-300 hover:text-ink-100 transition-colors mb-2"
+                type="button"
+                onClick={() =>
+                  onPerguntarBot(
+                    `Me dá uma dica estruturada para responder a questão "${questao.tema}" (${rotuloDisciplina(questao.disciplina)}) sem entregar o gabarito direto!`,
+                  )
+                }
+                className="inline-flex items-center gap-1.5 rounded-lg border border-emer/50 bg-emer/10 px-3 py-1 text-xs font-bold text-emer hover:bg-emer/20 transition"
               >
-                <IconStar className="w-3.5 h-3.5 text-uerj-gold" />
-                {mostrarGabarito ? "Ocultar" : "Ver"} gabarito esperado
+                <IconStetho className="h-3.5 w-3.5" /> Pedir dica à JujuBot IA
               </button>
-              {mostrarGabarito && (
-                <div className="rounded-lg border border-uerj-gold/40 bg-[rgba(212,165,116,0.08)] p-4 animate-fade-in">
-                  <p className="text-[13px] text-ink-200 leading-relaxed">{questao.gabarito}</p>
-                </div>
-              )}
-            </div>
+            )}
+          </div>
+          <p className="text-[15px] leading-relaxed text-ink-100">{questao.comando}</p>
+        </div>
 
-            {/* dica de ouro */}
-            <div
-              className="relative rounded-lg px-4 py-3.5 border overflow-hidden"
-              style={{
-                background: "linear-gradient(135deg, rgba(212,165,116,0.12), rgba(212,165,116,0.04))",
-                borderColor: "rgba(212,165,116,0.4)",
-              }}
-            >
-              <IconStar className="absolute -right-2 -top-2 w-12 h-12 text-uerj-gold/15 rotate-12" />
-              <h4 className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-uerj-gold mb-1.5">
-                <IconStar className="w-3.5 h-3.5" />
-                Dica de ouro · estilo UERJ
-              </h4>
-              <p className="text-[13.5px] leading-relaxed text-ink-100">{questao.dicaDeOuro}</p>
-            </div>
+        {/* Critérios de pontuação visíveis para orientar a resposta */}
+        <div className="rounded-lg border border-ink-700/80 bg-ink-900/60 p-3.5">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-ink-400 mb-2">
+            Distribuição dos {questao.pontuacaoMaxima.toFixed(1)} pontos nesta questão:
+          </p>
+          <div className="grid gap-1.5 sm:grid-cols-3">
+            {questao.criterios.map((c, i) => (
+              <div key={i} className="rounded border border-ink-800 bg-ink-850 px-2.5 py-2 text-xs text-ink-300">
+                <strong className="font-mono text-uerj-gold">{c.pontos.toFixed(1)} pt:</strong> {c.descricao}
+              </div>
+            ))}
+          </div>
+        </div>
 
-            {/* botão próxima */}
-            <button
-              onClick={onNext}
-              className="group w-full sm:w-auto inline-flex items-center justify-center gap-2.5 rounded-lg bg-emer hover:bg-emer-deep text-ink-950 font-display font-bold text-sm px-6 py-3 transition-all duration-300 hover:shadow-[0_6px_24px_rgba(74,124,46,0.35)] active:scale-[0.98]"
-            >
-              {ehUltima ? "Ver resultado final" : "Próxima questão discursiva"}
-              <IconArrow className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" />
-            </button>
+        <div>
+          <label htmlFor={`resposta-${questao.id}`} className="mb-2 block text-xs font-bold text-ink-200">
+            Sua resposta discursiva
+          </label>
+          <textarea
+            id={`resposta-${questao.id}`}
+            rows={questao.disciplina === "redacao" ? 15 : 7}
+            value={resposta}
+            onChange={(e) => onResponder(e.target.value)}
+            disabled={corrigindo}
+            placeholder={
+              questao.disciplina === "redacao"
+                ? "Escreva sua dissertação argumentativa de 20 a 30 linhas, com tese clara e articulação crítica a O bem-amado..."
+                : "Escreva sua resposta completa em frases coesas (Causa → Mecanismo → Consequência)..."
+            }
+            className="w-full resize-y rounded-lg border border-ink-700 bg-ink-800 px-4 py-3 text-sm leading-relaxed text-ink-100 focus:border-emer focus:outline-none"
+          />
+          <div className="mt-1.5 flex flex-wrap justify-between gap-2 text-[11px] text-ink-400">
+            <span>{palavras} palavras digitadas</span>
+            {questao.disciplina === "redacao" ? (
+              <span>{linhas} parágrafos/linhas · meta UERJ: 20 a 30 linhas</span>
+            ) : (
+              <span>Mínimo recomendado: 15+ palavras com cadeia causal completa</span>
+            )}
+          </div>
+        </div>
+
+        {erro && (
+          <div className="flex gap-2 rounded-lg border border-uerj-red/50 bg-uerj-red/10 p-3 text-sm text-ink-100">
+            <IconAlert className="h-4 w-4 shrink-0 text-uerj-red" />
+            {erro}
           </div>
         )}
-      </section>
+
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            onClick={onCorrigir}
+            disabled={corrigindo || resposta.trim().length < 8}
+            className="inline-flex items-center gap-2 rounded-lg bg-emer px-5 py-3 font-display text-sm font-bold text-ink-950 disabled:opacity-40 hover:brightness-110 transition"
+          >
+            <IconSpark className="h-4 w-4" />
+            {corrigindo
+              ? "Avaliando e calculando sua nota DSEA…"
+              : resultado
+              ? "Recorrigir resposta com IA"
+              : `Corrigir e dar nota (0 a ${questao.pontuacaoMaxima.toFixed(1)} pts)`}
+          </button>
+
+          {onPerguntarBot && (
+            <button
+              type="button"
+              onClick={() =>
+                onPerguntarBot(
+                  resultado
+                    ? `Tirei ${resultado.nota.toFixed(1)} de ${resultado.notaMaxima.toFixed(1)} na questão "${questao.tema}". Como posso reescrever minha resposta para fechar a nota máxima?`
+                    : `Pode me explicar o conteúdo de "${questao.tema}" cobrado nesta questão da UERJ?`,
+                )
+              }
+              className="inline-flex items-center gap-2 rounded-lg border border-ink-600 bg-ink-800 px-4 py-3 text-xs font-bold text-ink-200 hover:border-emer hover:text-emer transition"
+            >
+              <IconStetho className="h-4 w-4 text-emer" />
+              {resultado ? "Perguntar à IA como melhorar minha nota" : "Tirar dúvida da matéria com o Bot"}
+            </button>
+          )}
+        </div>
+
+        {resultado && (
+          <section className="space-y-5 border-t border-ink-700 pt-5 animate-fade-in">
+            <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-emer/40 bg-ink-800/90 p-4">
+              <div className="flex items-center gap-4">
+                <div className="flex h-20 w-24 shrink-0 flex-col items-center justify-center rounded-xl border-2 border-emer bg-emer/15">
+                  <strong className="font-mono text-2xl font-extrabold text-emer">
+                    {resultado.nota.toFixed(1)}
+                  </strong>
+                  <span className="text-[10px] font-semibold text-ink-300">
+                    de {resultado.notaMaxima.toFixed(1)} pts
+                  </span>
+                </div>
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="font-display text-lg font-bold text-ink-100">Nota da Questão</h3>
+                    {peso > 1 && (
+                      <span className="rounded-md bg-uerj-gold/20 px-2.5 py-0.5 font-mono text-xs font-bold text-uerj-gold">
+                        Peso {peso}: +{notaPonderada.toFixed(1)} / {maxPonderada.toFixed(1)} pts na Nota Final
+                      </span>
+                    )}
+                  </div>
+                  <p className="mt-1 text-sm leading-relaxed text-ink-300">{resultado.feedback}</p>
+                </div>
+              </div>
+              {onRefazer && (
+                <button
+                  type="button"
+                  onClick={onRefazer}
+                  className="rounded-lg border border-ink-600 px-3 py-1.5 text-xs font-semibold text-ink-300 hover:text-ink-100"
+                >
+                  Limpar nota
+                </button>
+              )}
+            </div>
+
+            {resultado.aviso && (
+              <div className="rounded-lg border border-uerj-red bg-uerj-red/10 p-3 font-bold text-uerj-red">
+                {resultado.aviso}
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-ink-300">
+                Nota detalhada por critério da rubrica:
+              </h4>
+              {resultado.criterios.map((c) => (
+                <div key={c.descricao} className="rounded-lg border border-ink-700 bg-ink-800 p-3">
+                  <div className="flex justify-between gap-3">
+                    <span className="text-sm font-semibold text-ink-100">{c.descricao}</span>
+                    <span className="shrink-0 font-mono text-xs font-bold text-uerj-gold">
+                      {c.obtido.toFixed(1)} / {c.maximo.toFixed(1)} pt
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs leading-relaxed text-ink-400">{c.justificativa}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-lg border border-emer/40 bg-emer/5 p-4">
+                <h4 className="mb-2 flex items-center gap-2 text-xs font-bold uppercase text-emer">
+                  <IconCheck className="h-4 w-4" /> O que você acertou
+                </h4>
+                <ul className="space-y-1 text-sm text-ink-200">
+                  {resultado.pontosFortes.length ? (
+                    resultado.pontosFortes.map((p) => <li key={p}>• {p}</li>)
+                  ) : (
+                    <li>• Revise os termos essenciais da rubrica.</li>
+                  )}
+                </ul>
+              </div>
+              <div className="rounded-lg border border-uerj-red/40 bg-uerj-red/5 p-4">
+                <h4 className="mb-2 flex items-center gap-2 text-xs font-bold uppercase text-uerj-red">
+                  <IconCross className="h-4 w-4" /> O que faltou para fechar {resultado.notaMaxima.toFixed(1)} pts
+                </h4>
+                <ul className="space-y-1 text-sm text-ink-200">
+                  {resultado.faltouParaNotaMaxima.length ? (
+                    resultado.faltouParaNotaMaxima.map((p) => <li key={p}>• {p}</li>)
+                  ) : (
+                    <li>• Nenhum item relevante faltou — nota máxima!</li>
+                  )}
+                </ul>
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-uerj-gold/40 bg-uerj-gold/5 p-4">
+              <h4 className="mb-2 flex items-center gap-2 text-xs font-bold uppercase text-uerj-gold">
+                <IconStar className="h-4 w-4" /> Gabarito Oficial · Padrão de Resposta da Banca DSEA
+              </h4>
+              <p className="text-sm leading-relaxed text-ink-200">{resultado.comparacaoDsea}</p>
+              <p className="mt-3 border-t border-ink-700 pt-3 text-xs leading-relaxed text-ink-300">
+                <strong className="text-uerj-gold">Resposta-modelo DSEA:</strong> {questao.padraoDsea}
+              </p>
+            </div>
+
+            <div className="flex flex-wrap justify-between gap-3">
+              <button
+                onClick={onNext}
+                className="inline-flex items-center gap-2 rounded-lg bg-emer px-5 py-3 font-display text-sm font-bold text-ink-950"
+              >
+                Próxima questão <IconArrow className="h-4 w-4" />
+              </button>
+            </div>
+          </section>
+        )}
+      </div>
     </article>
   );
 }
