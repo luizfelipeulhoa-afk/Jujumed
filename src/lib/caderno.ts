@@ -21,10 +21,37 @@ export interface CadernoEntry {
   dificuldades: DificuldadeDetectada[];
 }
 
+export const CAUSAS_ERRO = [
+  "Conteúdo / Teoria",
+  "Interpretação do Comando / Gráfico",
+  "Erro de Cálculo / Unidade",
+  "Gestão do Tempo",
+] as const;
+export type CausaErro = (typeof CAUSAS_ERRO)[number];
+
+export interface RevisaoErro {
+  id: string;
+  questaoId: string;
+  disciplina: "biologia" | "quimica" | "redacao";
+  tema: string;
+  causa: CausaErro;
+  criadaEm: string;
+  revisarEm: string;
+  concluidaEm: string | null;
+}
+
+export function criarRevisaoErro(input: Omit<RevisaoErro, "id" | "criadaEm" | "revisarEm" | "concluidaEm">): RevisaoErro {
+  const agora = new Date();
+  const revisar = new Date(agora);
+  revisar.setDate(revisar.getDate() + 3);
+  return { ...input, id: uid(), criadaEm: agora.toISOString(), revisarEm: revisar.toISOString(), concluidaEm: null };
+}
+
 const CADERNO_KEY = "tutor-uerj-caderno-v1";
 
 export function carregarCaderno(): CadernoEntry[] {
   try {
+    if (typeof window === "undefined") return [];
     const raw = localStorage.getItem(CADERNO_KEY);
     if (raw) {
       const arr = JSON.parse(raw) as CadernoEntry[];
@@ -38,6 +65,7 @@ export function carregarCaderno(): CadernoEntry[] {
 
 export function salvarCaderno(entries: CadernoEntry[]) {
   try {
+    if (typeof window === "undefined") return;
     localStorage.setItem(CADERNO_KEY, JSON.stringify(entries));
   } catch {
     /* armazenamento indisponível */
@@ -58,9 +86,8 @@ function normalizar(texto: string): string {
 /** Vocabulário típico de quem descreve onde a prova "doeu". */
 const DICIONARIO: Record<AreaId, string[]> = {
   literatura: [
-    "cortiço", "cortico", "aluísio", "aluisio", "azevedo", "naturalismo", "naturalista",
-    "romance", "literatura", "bertoleza", "joão romão", "joao romao", "zoomorfização",
-    "zoomorfizacao", "determinismo", "livro", "leitura",
+    "bem-amado", "bem amado", "dias gomes", "odorico", "sucupira", "coronelismo",
+    "personalismo", "retórica política", "desinformação", "cidadania", "literatura", "redação",
   ],
   biologia: [
     "biologia", "ecologia", "teia alimentar", "cadeia alimentar", "magnificação", "magnificacao",

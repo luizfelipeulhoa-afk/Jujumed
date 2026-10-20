@@ -201,7 +201,7 @@ export default function UploadView({ onProcessar, navegar, totalEntradas }: Prop
                 setAnotacoes(e.target.value);
                 setErro(null);
               }}
-              placeholder='Ex.: "Travei nas de equilíbrio químico e nas de probabilidade. O Cortiço até fui bem, mas errei uma de Le Chatelier e duas de ecologia…"'
+              placeholder='Ex.: "Travei em equilíbrio químico e na argumentação sobre O bem-amado. Também errei duas de ecologia…"'
               className="w-full rounded-lg border border-ink-700 bg-ink-800 px-4 py-3 text-[13.5px] leading-relaxed text-ink-100 placeholder:text-ink-400/70 focus:outline-none focus:border-uerj-blue/70 focus:ring-2 focus:ring-uerj-blue/20 transition-all resize-none"
             />
             <div className="flex justify-between text-[11px] text-ink-400 mt-1">
@@ -299,7 +299,7 @@ export default function UploadView({ onProcessar, navegar, totalEntradas }: Prop
               ) : (
                 <p className="text-[13.5px] text-ink-200 leading-relaxed mb-3">
                   A tutora guardou seus arquivos e anotações. Para mapear áreas automaticamente, cite os temas nas
-                  anotações — ex.: <em>“equilíbrio químico”</em>, <em>“probabilidade”</em>, <em>“O Cortiço”</em>.
+                  anotações — ex.: <em>“equilíbrio químico”</em>, <em>“ecologia”</em>, <em>“O bem-amado”</em>.
                 </p>
               )}
               <div className="flex flex-wrap gap-3 mt-4">
@@ -337,7 +337,7 @@ export default function UploadView({ onProcessar, navegar, totalEntradas }: Prop
                 {
                   icone: <IconStar className="w-4 h-4 text-uerj-gold" />,
                   t: "Anexa a Dica de Ouro UERJ",
-                  d: "Cada área detectada já vem com o macete de banca para você não errar no domingo.",
+                  d: "Cada área detectada já vem com um foco objetivo para a revisão do Exame Discursivo.",
                 },
                 {
                   icone: <IconPulse className="w-4 h-4 text-uerj-red" />,

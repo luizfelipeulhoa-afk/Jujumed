@@ -108,7 +108,7 @@ function BarrasArea({ respostas }: { respostas: Map<string, RespostaRegistrada> 
       {areas.map((area) => {
         const doArea = QUESTIONS.filter((q) => q.area === area);
         const respondidas = doArea.filter((q) => respostas.has(q.id));
-        const acertos = respondidas.filter((q) => respostas.get(q.id)!.is_correct).length;
+        const acertos = respondidas.filter((q) => respostas.get(q.id)?.is_correct === true).length;
         const pct = respondidas.length ? Math.round((acertos / respondidas.length) * 100) : 0;
         const { cor } = AREAS[area];
         return (
