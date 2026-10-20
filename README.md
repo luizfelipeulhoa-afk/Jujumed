@@ -1,26 +1,41 @@
-# Jujumed Live Site
+# Jujumed
 
-https://github.com/luizfelipeulhoa-afk/Jujumed.git quero que você publique esse site
+Aplicação de preparação para o Exame Discursivo de Medicina da UERJ 2027. O projeto usa TanStack Start, Vite, Supabase e Cloudflare Workers.
 
-This project was built with [Lovable](https://lovable.dev).
+## Desenvolvimento
 
-**Live app**: https://jujumed.lovable.app
-
-## Build with Lovable
-
-Continue developing this project in the [Lovable editor](https://lovable.dev/projects/c8515cb4-a95b-4468-b82e-26f9a12d9c4b).
-
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: every change made in Lovable is committed straight to this repository.
-- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
-
-## Development
-
-Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
+Requisitos: Bun e uma conta Supabase.
 
 ```sh
-git clone <this-repository-url>
-cd <repository-name>
-npm i
-npm run dev
+bun install
+bun run dev
 ```
+
+Configure as variáveis públicas do Supabase para o build e as chaves privadas no servidor:
+
+```sh
+VITE_SUPABASE_URL=
+VITE_SUPABASE_PUBLISHABLE_KEY=
+SUPABASE_URL=
+SUPABASE_PUBLISHABLE_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+```
+
+As funções de tutoria e correção usam um endpoint compatível com a API de chat da OpenAI. Configure as credenciais no servidor; elas não devem usar o prefixo `VITE_` nem ser incluídas no navegador:
+
+```sh
+AI_BASE_URL=
+AI_API_KEY=
+AI_MODEL=
+```
+
+Essas variáveis são necessárias para a JujuBot e para a correção inteligente. `CRON_SECRET` e, durante uma troca de chave, `CRON_SECRET_PREVIOUS` só são necessários se os endpoints cron protegidos forem usados.
+
+## Publicar no Cloudflare Workers
+
+1. Conecte este repositório a uma conta Cloudflare e instale as dependências com `bun install`.
+2. Configure `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY` como variáveis de build. Configure `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SERVICE_ROLE_KEY` e `AI_*` no ambiente do Worker; marque as chaves privadas como secrets.
+3. Execute `bun run deploy` localmente após `bunx wrangler login`, ou configure o Cloudflare para construir com `bun run build` e publicar com `bunx wrangler deploy`.
+4. No Supabase, atualize a lista de URLs permitidas para incluir o domínio do Worker.
+
+O backend Supabase continua no projeto já existente. Migrar o site não copia nem apaga dados. Para testar localmente, crie `.env.local` com as variáveis e mantenha os secrets fora do Git.

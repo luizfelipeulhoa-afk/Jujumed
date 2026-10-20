@@ -14,9 +14,6 @@ const entradaSchema = z.object({
 export const conversarComJuju = createServerFn({ method: "POST" })
   .inputValidator((input) => entradaSchema.parse(input))
   .handler(async ({ data }): Promise<string> => {
-    const apiKey = process.env["LOVABLE_API_KEY"];
-    if (!apiKey) throw new Error("O chat com a JujuBot precisa de uma chave de IA configurada no servidor.");
-
     const questao = data.questaoId
       ? TODAS_QUESTOES_2027.find((item) => item.id === data.questaoId)
       : undefined;
@@ -24,28 +21,12 @@ export const conversarComJuju = createServerFn({ method: "POST" })
       ? `Questão atual (${questao.disciplina}): ${questao.tema}.\nComando: ${questao.comando}\nPadrão de conteúdo: ${questao.padraoDsea}`
       : "A estudante não está com uma questão específica aberta.";
 
-    const [{ createOpenAI }, { generateText }, { createRunIdFetch }] = await Promise.all([
-      import("@ai-sdk/openai"),
+    const [{ generateText }, { getConfiguredAiModel }] = await Promise.all([
       import("ai"),
-      import("./run-id.server"),
+      import("./ai-provider.server"),
     ]);
-    const provider = createOpenAI({
-      baseURL: "https://ai.gateway.lovable.dev/v1",
-      apiKey,
-      headers: { "Lovable-API-Key": apiKey, "X-Lovable-AIG-SDK": "vercel-ai-sdk" },
-      fetch: createRunIdFetch(),
-    });
     const result = await generateText({
-      model: provider.responses("openai/gpt-6-astra"),
-      providerOptions: {
-        openai: {
-          forceReasoning: true,
-          reasoningEffort: "medium",
-          reasoningSummary: "auto",
-          store: false,
-          include: ["reasoning.encrypted_content"],
-        },
-      },
+      model: getConfiguredAiModel(),
       messages: [
         {
           role: "system",
