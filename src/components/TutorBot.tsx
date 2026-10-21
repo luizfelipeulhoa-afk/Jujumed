@@ -47,9 +47,9 @@ type JanelaComVoz = Window & {
 
 let proximoId = 1;
 
-function saudacaoDoUrso() {
+function contextoDoUrso() {
   const hora = new Date().getHours();
-  const periodo = hora < 12 ? "Bom dia" : hora < 18 ? "Boa tarde" : "Boa noite";
+
   let nome = "Jujuba";
   try {
     const id = localStorage.getItem("tutor-uerj-perfil-ativo");
@@ -61,7 +61,7 @@ function saudacaoDoUrso() {
   } catch {
     /* A saudação também funciona sem armazenamento local. */
   }
-  return `${periodo}, ${nome}! Sou seu ursinho Juju. Vamos cuidar dos seus sonhos de Medicina?`;
+  return { horaLocal: hora, nome: nome.slice(0, 80) };
 }
 
 export default function TutorBot({
@@ -72,9 +72,11 @@ export default function TutorBot({
   onLimparPerguntaInicial,
 }: Props) {
   const [aberto, setAberto] = useState(false);
-  const [saudacao, setSaudacao] = useState("Oi, Jujuba! Vamos estudar juntas?");
+  const [saudacao, setSaudacao] = useState("Juju está preparando uma saudação para você…");
   const [mostrarSaudacao, setMostrarSaudacao] = useState(true);
   const [gesto, setGesto] = useState<"idle" | "wave" | "stethoscope" | "breathe">("wave");
+  const saudacaoPromiseRef = useRef<Promise<string> | null>(null);
+  const painelAbertoRef = useRef(false);
   const gestoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const animar = useCallback((acao: "wave" | "stethoscope" | "breathe") => {
@@ -84,18 +86,31 @@ export default function TutorBot({
   }, []);
 
   useEffect(() => {
-    const boasVindas = saudacaoDoUrso();
-    setSaudacao(boasVindas);
-    setMensagens([
-      {
-        id: 0,
-        autor: "jujubot",
-        texto: boasVindas + " Pode escrever ou ativar o microfone para conversar comigo.",
-      },
-    ]);
+    let ativo = true;
     animar("wave");
-    const timer = setTimeout(() => setMostrarSaudacao(false), 14000);
+    saudacaoPromiseRef.current ??= conversarComJuju({
+      data: { mensagem: "", acao: "greeting", ...contextoDoUrso() },
+    });
+    void saudacaoPromiseRef.current
+      .then((resposta) => {
+        if (!ativo) return;
+        setSaudacao(resposta);
+        setMensagens((atuais) =>
+          atuais.map((item) => (item.id === 0 ? { ...item, texto: resposta } : item)),
+        );
+      })
+      .catch(() => {
+        if (!ativo) return;
+        const aviso = "Não consegui conectar ao Gemini agora. Toque no urso para tentar novamente.";
+        setSaudacao(aviso);
+        setMensagens((atuais) =>
+          atuais.map((item) => (item.id === 0 ? { ...item, texto: aviso } : item)),
+        );
+        saudacaoPromiseRef.current = null;
+      });
+    const timer = setTimeout(() => setMostrarSaudacao(false), 30000);
     return () => {
+      ativo = false;
       clearTimeout(timer);
       if (gestoTimer.current) clearTimeout(gestoTimer.current);
     };
@@ -104,7 +119,7 @@ export default function TutorBot({
     {
       id: 0,
       autor: "jujubot",
-      texto: "Oi! Sou o ursinho Juju, seu companheiro de estudos. Vamos estudar juntas?",
+      texto: "Juju está preparando uma saudação para você…",
     },
   ]);
   const [texto, setTexto] = useState("");
@@ -246,37 +261,45 @@ export default function TutorBot({
   function brincar(acao: "wave" | "stethoscope" | "breathe") {
     if (trabalhandoRef.current) return;
     animar(acao);
-    const mensagem =
-      acao === "wave"
-        ? saudacaoDoUrso()
-        : acao === "stethoscope"
-          ? "Tum-tum! Meu estetoscópio de brincadeira ouviu uma futura médica cheia de sonhos! Que tal revisar o sistema circulatório comigo?"
-          : "Vamos fazer uma pausa juntas? Inspire suavemente enquanto eu cresço e solte o ar enquanto eu diminuo. Sem pressa, no seu ritmo.";
-    setMensagens((atuais) => [...atuais, { id: proximoId++, autor: "jujubot", texto: mensagem }]);
-    reconhecedorRef.current?.abort();
-    falarResposta(mensagem, true);
+    void enviarMensagem("", false, acao === "wave" ? "greeting" : acao);
   }
 
-  function abrirUrso() {
+  async function abrirUrso() {
+    painelAbertoRef.current = true;
     setAberto(true);
     setMostrarSaudacao(false);
     animar("wave");
-    falarResposta(saudacaoDoUrso(), true);
+    if (!saudacaoPromiseRef.current) {
+      void enviarMensagem("", false, "greeting");
+      return;
+    }
+    try {
+      const resposta = await saudacaoPromiseRef.current;
+      if (painelAbertoRef.current && !trabalhandoRef.current) falarResposta(resposta, true);
+    } catch {
+      setAvisoVoz("O Gemini não respondeu. Use Dar um oi para tentar novamente.");
+    }
   }
 
-  async function enviarMensagem(mensagem: string, veioDaVoz = false) {
+  async function enviarMensagem(
+    mensagem: string,
+    veioDaVoz = false,
+    acao?: "greeting" | "stethoscope" | "breathe",
+  ) {
     const limpa = mensagem.trim();
-    if (!limpa || trabalhandoRef.current) return;
+    if ((!limpa && !acao) || trabalhandoRef.current) return;
     trabalhandoRef.current = true;
     reconhecedorRef.current?.stop();
     setTexto("");
     setAvisoVoz("");
-    setMensagens((atuais) => [...atuais, { id: proximoId++, autor: "voce", texto: limpa }]);
+    if (!acao)
+      setMensagens((atuais) => [...atuais, { id: proximoId++, autor: "voce", texto: limpa }]);
     setCarregando(true);
     try {
       const resposta = await conversarComJuju({
         data: {
           mensagem: limpa,
+          ...(acao ? { acao, ...contextoDoUrso() } : {}),
           questaoId: questaoAtivaIdRef.current,
           historico: mensagens.slice(-8).map((item) => ({
             role: item.autor === "voce" ? ("user" as const) : ("assistant" as const),
@@ -285,7 +308,8 @@ export default function TutorBot({
         },
       });
       setMensagens((atuais) => [...atuais, { id: proximoId++, autor: "jujubot", texto: resposta }]);
-      if (veioDaVoz || vozAtivaRef.current) falarResposta(resposta);
+      if (acao && painelAbertoRef.current) falarResposta(resposta, true);
+      else if (veioDaVoz || vozAtivaRef.current) falarResposta(resposta);
     } catch (erro) {
       const respostaErro =
         erro instanceof Error
@@ -329,10 +353,11 @@ export default function TutorBot({
     vozAtivaRef.current = true;
     setVozAtiva(true);
     setAvisoVoz("Conversa por voz ativada. Pode falar quando o microfone estiver ouvindo.");
-    falarResposta("Estou aqui com você. Pode falar quando eu terminar.");
+    iniciarEscuta();
   }
 
   function fechar() {
+    painelAbertoRef.current = false;
     pararVoz();
     setAberto(false);
     onFecharExterno();
@@ -341,6 +366,7 @@ export default function TutorBot({
   useEffect(
     () => () => {
       vozAtivaRef.current = false;
+      painelAbertoRef.current = false;
       falaRef.current = null;
       reconhecedorRef.current?.abort();
       window.speechSynthesis?.cancel();

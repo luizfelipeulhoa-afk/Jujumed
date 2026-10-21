@@ -29,7 +29,18 @@ AI_API_KEY=
 AI_MODEL=
 ```
 
-Essas variáveis são necessárias para a JujuBot e para a correção inteligente. `CRON_SECRET` e, durante uma troca de chave, `CRON_SECRET_PREVIOUS` só são necessários se os endpoints cron protegidos forem usados.
+Essas variáveis continuam configurando a correção inteligente. A conversa do ursinho Juju, incluindo saudações, estetoscópio e pausa para respirar, usa exclusivamente o Gemini no servidor:
+
+```sh
+GEMINI_API_KEY=
+GEMINI_MODEL=gemini-3.8-flash
+```
+
+Cadastre `GEMINI_API_KEY` como Secret em Cloudflare → jujumed → Settings → Variables and Secrets. Também são aceitas `GOOGLE_API_KEY` ou a chave Google já cadastrada em `AI_API_KEY`, nessa ordem. O modelo existente em `AI_MODEL` é preservado se começar com `gemini-`; `GEMINI_MODEL` tem prioridade. Sem modelo definido, usa-se `gemini-3.8-flash`. O chat sempre usa o endpoint oficial do Google e não alterna para outro provedor.
+
+A saudação é gerada uma vez por montagem do assistente. As brincadeiras fazem chamadas sob demanda. A voz usa os recursos do navegador; Gemini gera o texto. A camada gratuita do Gemini está sujeita às cotas da conta: https://ai.google.dev/gemini-api/docs/pricing.
+
+`CRON_SECRET` e, durante uma troca de chave, `CRON_SECRET_PREVIOUS` só são necessários se os endpoints cron protegidos forem usados.
 
 ## Publicar no Cloudflare Workers
 

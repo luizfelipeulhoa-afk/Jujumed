@@ -17,3 +17,16 @@ export function getConfiguredAiModel() {
 
   return createOpenAI({ apiKey, baseURL }).chat(modelId);
 }
+
+/** Chat and mascot interactions always use Gemini; exam scoring keeps its own configuration. */
+export function getGeminiChatModel() {
+  const apiKey =
+    process.env["GEMINI_API_KEY"] || process.env["GOOGLE_API_KEY"] || process.env["AI_API_KEY"];
+  if (!apiKey) throw new Error("Configure a chave do Gemini em GEMINI_API_KEY no servidor.");
+  const configured = process.env["GEMINI_MODEL"] || process.env["AI_MODEL"];
+  const modelId = configured?.startsWith("gemini-") ? configured : "gemini-3.8-flash";
+  return createOpenAI({
+    apiKey,
+    baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/",
+  }).chat(modelId);
+}
