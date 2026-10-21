@@ -33,8 +33,8 @@ Essas variáveis são necessárias para a JujuBot e para a correção inteligent
 
 ## Publicar no Cloudflare Workers
 
-1. No Cloudflare, crie um Worker e conecte este repositório GitHub. A branch de produção é `main`; a configuração Wrangler está em `wrangler.jsonc` e o nome do Worker é `jujamed`.
-2. Configure o comando de build como `bun run build` e o de deploy como `bunx wrangler deploy`.
+1. No Cloudflare, crie um Worker e conecte este repositório GitHub. A branch de produção é `main`; a configuração Wrangler está em `wrangler.jsonc` e o nome do Worker é `jujumed`, igual ao nome já cadastrado no painel Cloudflare.
+2. Em **Build configuration**, configure o comando de build `bun run build` e o comando de deploy `bunx wrangler deploy`. O build Vite precisa rodar antes do Wrangler para gerar os módulos de TanStack Start.
 3. Configure `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY` como variáveis de build. Configure `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SERVICE_ROLE_KEY` e `AI_*` no ambiente do Worker; marque as chaves privadas como secrets.
 4. Para publicar pela sua máquina, execute `bun install`, `bunx wrangler login` e `bun run deploy`.
 5. No Supabase, atualize a lista de URLs permitidas para incluir o domínio do Worker.
