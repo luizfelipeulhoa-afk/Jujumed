@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "jujamed",
+  "name": "jujumed",
   "compatibility_date": "2026-10-20",
   "compatibility_flags": ["nodejs_compat"],
   "main": "src/server.ts",
