@@ -21,6 +21,7 @@ interface Mensagem {
   autor: "jujubot" | "voce";
   texto: string;
   erro?: boolean;
+  pendente?: boolean;
 }
 
 interface ResultadoReconhecimento {
@@ -109,7 +110,9 @@ export default function TutorBot({
         if (!ativo) return;
         setSaudacao(resposta);
         setMensagens((atuais) =>
-          atuais.map((item) => (item.id === 0 ? { ...item, texto: resposta, erro: false } : item)),
+          atuais.map((item) =>
+            item.id === 0 ? { ...item, texto: resposta, erro: false, pendente: false } : item,
+          ),
         );
       })
       .catch((error: unknown) => {
@@ -120,7 +123,9 @@ export default function TutorBot({
             : "Não consegui conectar ao Gemini agora. Toque no urso para tentar novamente.";
         setSaudacao(aviso);
         setMensagens((atuais) =>
-          atuais.map((item) => (item.id === 0 ? { ...item, texto: aviso, erro: true } : item)),
+          atuais.map((item) =>
+            item.id === 0 ? { ...item, texto: aviso, erro: true, pendente: false } : item,
+          ),
         );
         saudacaoPromiseRef.current = null;
       });
@@ -137,6 +142,7 @@ export default function TutorBot({
       autor: "jujubot",
       texto: "O Totem da sabedoria está preparando uma saudação para você…",
       erro: true,
+      pendente: true,
     },
   ]);
   const [texto, setTexto] = useState("");
@@ -145,6 +151,10 @@ export default function TutorBot({
   const [falando, setFalando] = useState(false);
   const [avisoVoz, setAvisoVoz] = useState("");
   const [vozDisponivel, setVozDisponivel] = useState(false);
+  const [sinteseDisponivel, setSinteseDisponivel] = useState(false);
+  const [vozes, setVozes] = useState<SpeechSynthesisVoice[]>([]);
+  const [vozEscolhida, setVozEscolhida] = useState("");
+  const vozEscolhidaRef = useRef("");
   const rolagemRef = useRef<HTMLDivElement>(null);
   const reconhecedorRef = useRef<ReconhecedorVoz | null>(null);
   const vozAtivaRef = useRef(false);
@@ -159,6 +169,33 @@ export default function TutorBot({
   const perguntaInicialEnviadaRef = useRef<string | null>(null);
 
   const estaAberto = aberto || abertoExternamente;
+
+  useEffect(() => {
+    let saved = "";
+    try {
+      saved = localStorage.getItem(`totem-voice:${perfilId ?? "visitante"}`) ?? "";
+    } catch {
+      /* Storage is optional. */
+    }
+    vozEscolhidaRef.current = saved;
+    setVozEscolhida(saved);
+  }, [perfilId]);
+
+  useEffect(() => {
+    if (!("speechSynthesis" in window)) return;
+    setSinteseDisponivel(true);
+    const update = () =>
+      setVozes(
+        [...window.speechSynthesis.getVoices()].sort((a, b) => {
+          const rank = (voice: SpeechSynthesisVoice) =>
+            /^pt[-_]br$/i.test(voice.lang) ? 0 : /^pt/i.test(voice.lang) ? 1 : 2;
+          return rank(a) - rank(b) || a.name.localeCompare(b.name);
+        }),
+      );
+    update();
+    window.speechSynthesis.addEventListener("voiceschanged", update);
+    return () => window.speechSynthesis.removeEventListener("voiceschanged", update);
+  }, []);
 
   useEffect(() => {
     const janela = window as JanelaComVoz;
@@ -244,16 +281,25 @@ export default function TutorBot({
   const falarResposta = useCallback(
     (resposta: string, avulsa = false) => {
       if ((!vozAtivaRef.current && !avulsa) || !("speechSynthesis" in window)) return;
+      const reconhecedor = reconhecedorRef.current;
+      reconhecedorRef.current = null;
+      reconhecedor?.abort();
+      setOuvindo(false);
       falaRef.current = null;
       window.speechSynthesis.cancel();
       const fala = new SpeechSynthesisUtterance(resposta);
       falaRef.current = fala;
       fala.lang = "pt-BR";
       fala.rate = 1;
-      const vozPortugues = window.speechSynthesis
-        .getVoices()
-        .find((voz) => voz.lang.toLowerCase().startsWith("pt-br"));
-      if (vozPortugues) fala.voice = vozPortugues;
+      const available = window.speechSynthesis.getVoices();
+      const selected =
+        available.find((voz) => voz.voiceURI === vozEscolhidaRef.current) ??
+        available.find((voz) => /^pt[-_]br$/i.test(voz.lang)) ??
+        available.find((voz) => /^pt/i.test(voz.lang));
+      if (selected) {
+        fala.voice = selected;
+        fala.lang = selected.lang;
+      }
       falandoRef.current = true;
       setFalando(true);
       fala.onend = () => {
@@ -498,6 +544,59 @@ export default function TutorBot({
             </button>
           </header>
 
+          <details className="shrink-0 border-b border-white/10 bg-[#151f29] px-4 py-2 text-xs text-[#d7e5e2]">
+            <summary className="cursor-pointer py-1 font-semibold">Voz do Totem</summary>
+            <label htmlFor="totem-voice" className="mt-2 block">
+              Escolha a voz de leitura
+            </label>
+            <div className="mt-1 flex items-center gap-2">
+              <select
+                id="totem-voice"
+                value={vozEscolhida}
+                disabled={!sinteseDisponivel}
+                className="min-w-0 flex-1 rounded-lg border border-white/20 bg-[#0e151d] p-2 text-white focus:outline-2 focus:outline-[#d4a574]"
+                onChange={(event) => {
+                  const value = event.target.value;
+                  vozEscolhidaRef.current = value;
+                  setVozEscolhida(value);
+                  try {
+                    localStorage.setItem(`totem-voice:${perfilId ?? "visitante"}`, value);
+                  } catch {
+                    /* Storage is optional. */
+                  }
+                }}
+              >
+                <option value="">Automática · Português</option>
+                {vozEscolhida && !vozes.some((voz) => voz.voiceURI === vozEscolhida) && (
+                  <option value={vozEscolhida}>Voz salva indisponível · usando automática</option>
+                )}
+                {vozes.map((voz) => (
+                  <option key={voz.voiceURI} value={voz.voiceURI}>
+                    {voz.name} · {voz.lang}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                disabled={!sinteseDisponivel || carregando}
+                className="shrink-0 rounded-lg border border-[#d4a574]/50 px-2 py-2 disabled:opacity-40"
+                onClick={() =>
+                  falarResposta(
+                    "Oi, Ju! Sou o Totem da sabedoria. Esta é a voz que você escolheu.",
+                    true,
+                  )
+                }
+              >
+                Ouvir amostra
+              </button>
+            </div>
+            <p className="mt-2 text-[11px] text-[#9eacb5]">
+              {sinteseDisponivel
+                ? "O Gemini escreve as respostas; a voz é do navegador. As opções variam por dispositivo."
+                : "Este navegador não oferece leitura em voz alta."}
+            </p>
+          </details>
+
           <div className="bear-playground">
             <BearMascot gesto={ouvindo ? "stethoscope" : gesto} falando={falando} />
             <div className="bear-play-actions">
@@ -536,7 +635,7 @@ export default function TutorBot({
             className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-4"
             aria-live="polite"
           >
-            {mensagens.map((mensagem) => (
+            {mensagens.map((mensagem, index) => (
               <div
                 key={mensagem.id}
                 className={`flex ${mensagem.autor === "voce" ? "justify-end" : "justify-start"}`}
@@ -550,6 +649,25 @@ export default function TutorBot({
                     </span>
                   )}
                   {mensagem.texto}
+                  {mensagem.erro &&
+                    !mensagem.pendente &&
+                    index === mensagens.length - 1 &&
+                    !carregando && (
+                      <button
+                        type="button"
+                        className="mt-2 block rounded-lg border border-[#d4a574]/50 px-3 py-2 text-xs text-[#edcca7]"
+                        onClick={() => {
+                          const previous = mensagens
+                            .slice(0, index)
+                            .reverse()
+                            .find((item) => item.autor === "voce");
+                          if (previous) void enviarMensagem(previous.texto);
+                          else brincar("wave");
+                        }}
+                      >
+                        Tentar novamente
+                      </button>
+                    )}
                 </div>
               </div>
             ))}

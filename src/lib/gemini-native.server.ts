@@ -1,7 +1,7 @@
 import { GeminiConfigurationError } from "./gemini-connection";
 
 const BASE = "https://generativelanguage.googleapis.com/v1beta";
-const DEFAULT_MODEL = "gemini-3.8-flash";
+const DEFAULT_MODEL = "gemini-3.1-flash-lite";
 type Message = { role: "system" | "user" | "assistant"; content: string };
 type ModelInfo = { name?: string; supportedGenerationMethods?: string[] };
 type GoogleResponse = {
@@ -44,7 +44,7 @@ let fallback: { key: string; model: string; expires: number } | undefined;
 
 export async function generateGeminiReply(messages: Message[]): Promise<string> {
   const { key, model, explicitModel } = getGeminiSettings();
-  const signal = AbortSignal.timeout(30000);
+  const deadline = AbortSignal.timeout(45000);
   const system = messages
     .filter((m) => m.role === "system")
     .map((m) => m.content)
@@ -61,19 +61,34 @@ export async function generateGeminiReply(messages: Message[]): Promise<string> 
   while (contents[0]?.role === "model") contents.shift();
 
   async function request(path: string, body?: object): Promise<GoogleResponse> {
-    const response = await fetch(`${BASE}/${path}`, {
-      method: body ? "POST" : "GET",
-      headers: { "x-goog-api-key": key, ...(body ? { "Content-Type": "application/json" } : {}) },
-      ...(body ? { body: JSON.stringify(body) } : {}),
-      signal,
-    });
-    const text = await response.text();
-    if (!response.ok) throw new GeminiHttpError(response.status, text);
-    try {
-      return JSON.parse(text) as GoogleResponse;
-    } catch {
-      throw new GeminiHttpError(502, "Invalid JSON response from Gemini");
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const response = await fetch(`${BASE}/${path}`, {
+          method: body ? "POST" : "GET",
+          headers: {
+            "x-goog-api-key": key,
+            ...(body ? { "Content-Type": "application/json" } : {}),
+          },
+          ...(body ? { body: JSON.stringify(body) } : {}),
+          signal: AbortSignal.any([deadline, AbortSignal.timeout(18000)]),
+        });
+        const text = await response.text();
+        if (!response.ok) throw new GeminiHttpError(response.status, text);
+        try {
+          return JSON.parse(text) as GoogleResponse;
+        } catch {
+          throw new GeminiHttpError(502, "Invalid JSON response from Gemini");
+        }
+      } catch (error) {
+        const temporary =
+          error instanceof GeminiHttpError
+            ? [408, 500, 502, 503, 504].includes(error.statusCode)
+            : error instanceof Error && ["TimeoutError", "AbortError"].includes(error.name);
+        if (attempt === 1 || !temporary || deadline.aborted) throw error;
+        await new Promise((resolve) => setTimeout(resolve, 500 + Math.random() * 250));
+      }
     }
+    throw new GeminiHttpError(503, "Retry budget exhausted");
   }
   async function generate(selected: string) {
     const thinkingConfig = /^gemini-3[.-]/.test(selected)
@@ -84,7 +99,7 @@ export async function generateGeminiReply(messages: Message[]): Promise<string> 
     return request(`models/${encodeURIComponent(selected)}:generateContent`, {
       systemInstruction: { parts: [{ text: system }] },
       contents,
-      generationConfig: { maxOutputTokens: 4096, ...(thinkingConfig ? { thinkingConfig } : {}) },
+      generationConfig: { maxOutputTokens: 2048, ...(thinkingConfig ? { thinkingConfig } : {}) },
     });
   }
   const selected =
@@ -108,6 +123,7 @@ export async function generateGeminiReply(messages: Message[]): Promise<string> 
       .map((m) => m.name!.replace(/^models\//, ""));
     // Prefer a stable general-purpose Flash model from the list Google actually returned.
     const alternative =
+      names.find((name) => /lite/.test(name) && !/preview|exp/.test(name)) ??
       names.find((name) => !/preview|exp|lite/.test(name)) ??
       names.find((name) => !/preview|exp/.test(name)) ??
       names[0];

@@ -74,7 +74,7 @@ test("native Google requests handle model discovery, actual response format and 
       assert.deepEqual(body.contents, [
         { role: "user", parts: [{ text: "Oi" }, { text: "Tudo bem?" }] },
       ]);
-      if (String(url).includes("gemini-3.8-flash:"))
+      if (String(url).includes("gemini-3.1-flash-lite:"))
         return Response.json(
           { error: { code: 404, message: "Model not found", status: "NOT_FOUND" } },
           { status: 404 },
@@ -117,6 +117,31 @@ test("native Google requests handle model discovery, actual response format and 
         geminiFailure(error).code === "invalid_key" &&
         !JSON.stringify(geminiFailure(error)).includes("test-secret"),
     );
+    for (const temporary of ["unavailable", "timeout"]) {
+      let calls = 0;
+      globalThis.fetch = async () => {
+        calls++;
+        if (calls === 1) {
+          if (temporary === "timeout") throw new DOMException("Simulated delay", "TimeoutError");
+          return Response.json({ error: { code: 503, message: "Unavailable" } }, { status: 503 });
+        }
+        return Response.json({
+          candidates: [{ content: { parts: [{ text: "Conexão recuperada" }] } }],
+        });
+      };
+      assert.equal(await generateGeminiReply(messages), "Conexão recuperada");
+      assert.equal(calls, 2);
+    }
+    let quotaCalls = 0;
+    globalThis.fetch = async () => {
+      quotaCalls++;
+      return Response.json({ error: { code: 429, message: "Quota exhausted" } }, { status: 429 });
+    };
+    await assert.rejects(
+      generateGeminiReply(messages),
+      (error) => geminiFailure(error).code === "quota",
+    );
+    assert.equal(quotaCalls, 1);
   } finally {
     globalThis.fetch = originalFetch;
     for (const name of names) {
