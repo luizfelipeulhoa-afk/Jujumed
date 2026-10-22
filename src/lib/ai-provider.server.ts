@@ -22,7 +22,10 @@ export function getConfiguredAiModel() {
 export function getGeminiChatModel() {
   const apiKey =
     process.env["GEMINI_API_KEY"] || process.env["GOOGLE_API_KEY"] || process.env["AI_API_KEY"];
-  if (!apiKey) throw new Error("Configure a chave do Gemini em GEMINI_API_KEY no servidor.");
+  if (!apiKey)
+    throw new Error(
+      "Configure a chave do Google AI Studio como secret AI_API_KEY ou GEMINI_API_KEY no Cloudflare e publique a alteração.",
+    );
   const configured = process.env["GEMINI_MODEL"] || process.env["AI_MODEL"];
   const modelId = configured?.startsWith("gemini-") ? configured : "gemini-3.8-flash";
   return createOpenAI({

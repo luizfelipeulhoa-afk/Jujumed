@@ -7,6 +7,7 @@ import type { Questao2027 } from "../data/exame2027";
 import { conversarComJuju } from "../lib/tutor-chat.functions";
 
 interface Props {
+  perfilId?: string;
   questaoAtiva: Questao2027 | null;
   abertoExternamente: boolean;
   onFecharExterno: () => void;
@@ -67,6 +68,7 @@ function contextoDoUrso() {
 }
 
 export default function TutorBot({
+  perfilId,
   questaoAtiva,
   abertoExternamente,
   onFecharExterno,
@@ -76,6 +78,11 @@ export default function TutorBot({
   const [aberto, setAberto] = useState(false);
   const [saudacao, setSaudacao] = useState("Juju está preparando uma saudação para você…");
   const [mostrarSaudacao, setMostrarSaudacao] = useState(true);
+  const [recadoFechado, setRecadoFechado] = useState(false);
+  const mostrarRecado = perfilId === "jujuba" && !recadoFechado;
+  useEffect(() => {
+    setRecadoFechado(false);
+  }, [perfilId]);
   const [gesto, setGesto] = useState<"idle" | "wave" | "stethoscope" | "breathe">("wave");
   const saudacaoPromiseRef = useRef<Promise<string> | null>(null);
   const painelAbertoRef = useRef(false);
@@ -394,17 +401,31 @@ export default function TutorBot({
     <>
       {!estaAberto && (
         <DraggableMascot>
-          {mostrarSaudacao && (
-            <div className="bear-greeting">
+          {(mostrarRecado || mostrarSaudacao) && (
+            <div
+              className={`bear-greeting ${mostrarRecado ? "bear-dedication" : ""}`}
+              role="status"
+              aria-live="polite"
+            >
               <button
                 type="button"
                 className="bear-dismiss"
-                onClick={() => setMostrarSaudacao(false)}
-                aria-label="Dispensar saudação"
+                onClick={() => {
+                  setRecadoFechado(true);
+                  setMostrarSaudacao(false);
+                }}
+                aria-label="Fechar mensagem do urso"
               >
                 ×
               </button>
-              <p>{saudacao}</p>
+              {mostrarRecado && (
+                <strong className="bear-dedication-title">Um recado do seu irmão 💛</strong>
+              )}
+              <p className="bear-greeting-text">
+                {mostrarRecado
+                  ? "Seu irmão te ama muito, muito mais do que eu consigo demonstrar! Eu ja tenho muito orgulho de você mas eu sei que você pode muito mais, conte comigo sempre, Espero que goste do seu Totem"
+                  : saudacao}
+              </p>
               <button type="button" className="bear-greeting-action" onClick={abrirUrso}>
                 Conversar com o Juju ↗
               </button>

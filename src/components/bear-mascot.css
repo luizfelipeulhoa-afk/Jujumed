@@ -107,6 +107,44 @@
 .bear-dragging .bear-greeting {
   visibility: hidden;
 }
+.bear-dock-3d .bear-dedication {
+  width: min(320px, calc(100vw - 24px));
+  max-height: none;
+  overflow: visible;
+  transform: translateX(var(--bear-bubble-shift, 0px));
+  padding: 20px 30px 18px 20px;
+  border-radius: 24px;
+  background: #fff8eb;
+  border-color: #d4a574;
+}
+.bear-dedication::after {
+  content: "";
+  position: absolute;
+  right: calc(65px + var(--bear-bubble-shift, 0px));
+  bottom: -9px;
+  width: 16px;
+  height: 16px;
+  background: #fff8eb;
+  border-right: 1px solid #d4a574;
+  border-bottom: 1px solid #d4a574;
+  transform: rotate(45deg);
+}
+.bear-near-top .bear-dedication::after {
+  bottom: auto;
+  top: -9px;
+  transform: rotate(225deg);
+}
+.bear-dedication-title {
+  display: block;
+  color: #775131;
+  margin-bottom: 10px;
+}
+.bear-dedication .bear-greeting-text {
+  max-height: min(260px, 33vh);
+  overflow-y: auto;
+  font-size: 14px;
+  line-height: 1.65;
+}
 .bear-dock {
   position: fixed;
   right: max(12px, env(safe-area-inset-right));

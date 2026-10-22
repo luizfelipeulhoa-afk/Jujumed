@@ -79,7 +79,16 @@ export default function DraggableMascot({ children }: { children: ReactNode }) {
       className={`bear-dock bear-dock-3d ${dragging ? "bear-dragging" : ""} ${position && position.y < 240 ? "bear-near-top" : ""}`}
       aria-label="Seu companheiro de estudos"
       style={
-        position ? { left: position.x, top: position.y, right: "auto", bottom: "auto" } : undefined
+        position
+          ? ({
+              left: position.x,
+              top: position.y,
+              right: "auto",
+              bottom: "auto",
+              // Keep the wider dedication readable when the bear is dragged to the left edge.
+              "--bear-bubble-shift": `${Math.max(0, Math.min(320, window.innerWidth - 24) - 170 + 8 - position.x)}px`,
+            } as React.CSSProperties)
+          : undefined
       }
       onPointerDown={start}
       onPointerMove={(event) => {

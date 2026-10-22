@@ -159,6 +159,7 @@ export default function App() {
         )}
       </main>
       <TutorBot
+        perfilId={perfil.id}
         questaoAtiva={null}
         abertoExternamente={false}
         onFecharExterno={() => {}}

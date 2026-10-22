@@ -1,5 +1,6 @@
 import { Bone, Euler, Object3D, Quaternion, Vector3 } from "three";
 import type { MascotState } from "./mascot-events";
+import { danceMotion } from "./bear-dance";
 
 export type BearAction = "idle" | "welcome" | "applause" | "thinking" | "dance" | "drag" | "listen";
 export function bearAction(s: MascotState, now: number): BearAction {
@@ -95,7 +96,7 @@ export function createBearRig(model: Object3D) {
       rests.forEach((q, bone) => bone.quaternion.copy(q));
       model.updateWorldMatrix(true, true);
       const wave = reduced ? 0 : Math.sin(time * 5);
-      const beat = reduced ? 0 : Math.sin(time * Math.PI * 2 * 1.7);
+      const { sway: beat } = danceMotion(time, reduced);
       const l = new Vector3(0.25, 0.39, 0.04),
         r = new Vector3(-0.25, 0.39, 0.04);
       let pitch = gaze.y * -0.06,
@@ -127,13 +128,38 @@ export function createBearRig(model: Object3D) {
         pitch = -0.12;
       }
       if (action === "dance") {
-        l.set(0.24, 0.58 + beat * 0.13, 0.1);
-        r.set(-0.24, 0.58 - beat * 0.13, 0.1);
-        yaw = beat * 0.1;
+        // Keep both elbows almost straight and sweep the open arms together.
+        // The uploaded rig has different left/right arm lengths.
+        for (const [side, target] of [
+          ["Left", l],
+          ["Right", r],
+        ] as const) {
+          const upper = bones.get(side + "Arm")!;
+          const lower = bones.get(side + "ForeArm")!;
+          const hand = bones.get(side + "Hand")!;
+          const shoulder = model.worldToLocal(upper.getWorldPosition(new Vector3()));
+          const elbow = model.worldToLocal(lower.getWorldPosition(new Vector3()));
+          const wrist = model.worldToLocal(hand.getWorldPosition(new Vector3()));
+          const reach = (shoulder.distanceTo(elbow) + elbow.distanceTo(wrist)) * 0.995;
+          const angle = (side === "Left" ? 1.15 : -1.15) + beat * 0.55;
+          const direction = new Vector3(
+            Math.sin(angle),
+            0.1 + beat * 0.1,
+            Math.cos(angle),
+          ).normalize();
+          target.copy(shoulder).addScaledVector(direction, reach);
+        }
+        yaw = -beat * 0.12;
       }
       const blend = reduced ? 1 : 1 - Math.exp(-dt * 12);
-      left.lerp(l, blend);
-      right.lerp(r, blend);
+      // Do not shorten the reach by interpolating dance targets across an arc.
+      if (action === "dance") {
+        left.copy(l);
+        right.copy(r);
+      } else {
+        left.lerp(l, blend);
+        right.lerp(r, blend);
+      }
       tilt += (pitch - tilt) * blend;
       turn += (yaw - turn) * blend;
       worldRotate(bones.get("Head")!, tilt, turn);

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { getMascotState } from "../lib/mascot-events";
 import { bearAction, createBearRig } from "../lib/bear-rig";
+import { danceMotion } from "../lib/bear-dance";
 import {
   AmbientLight,
   Box3,
@@ -132,16 +133,19 @@ export default function Bear3D({
             ? s.musicTime + Math.min(0.5, (Date.now() - s.musicUpdatedAt) / 1000)
             : now / 1000;
         const moving = !reduced.matches;
+        const dance = danceMotion(time, reduced.matches);
+        actor.position.x = action === "dance" ? dance.sway * 0.055 : 0;
+        actor.rotation.y = action === "dance" ? dance.sway * 0.18 : 0;
         actor.position.y = moving
           ? action === "dance"
-            ? Math.abs(Math.sin(time * Math.PI * 3.4)) * 0.035
+            ? dance.bounce * 0.022
             : Math.sin(time * 2) * 0.008
           : 0;
         actor.rotation.z = moving
           ? action === "drag"
             ? Math.max(-0.25, Math.min(0.25, s.dragVelocityX * 0.012))
             : action === "dance"
-              ? Math.sin(time * Math.PI * 3.4) * 0.08
+              ? -dance.sway * 0.1
               : 0
           : 0;
         if (moving && props.current.falando) actor.position.y += Math.sin(now * 0.012) * 0.005;
