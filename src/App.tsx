@@ -1,3 +1,4 @@
+import { notifyMascot } from "./lib/mascot-events";
 import { useCallback, useEffect, useState } from "react";
 import CadernoView from "./components/CadernoView";
 import DiscursivasView from "./components/DiscursivasView";
@@ -81,6 +82,10 @@ export default function App() {
     const dados: DadosPerfil = { sessao: sessaoVazia(), caderno, notasCadernos: notas, revisoes };
     salvarDadosPerfil(perfil.id, dados);
   }, [perfil, caderno, notas, revisoes]);
+
+  useEffect(() => {
+    if (perfil?.id) notifyMascot({ type: "welcome" });
+  }, [perfil?.id]);
 
   const processarUpload = (entry: CadernoEntry) =>
     setCaderno((atual) => {

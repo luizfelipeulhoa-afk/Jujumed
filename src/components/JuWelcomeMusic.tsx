@@ -1,3 +1,4 @@
+import { notifyMascot } from "../lib/mascot-events";
 import { useEffect, useRef, useState } from "react";
 
 /** Mounted only for Ju's profile; navigating between study views keeps playback intact. */
@@ -25,6 +26,7 @@ export default function JuWelcomeMusic() {
     return () => {
       active = false;
       audio.pause();
+      notifyMascot({ type: "music", playing: false, time: audio.currentTime });
     };
   }, []);
 
@@ -60,15 +62,30 @@ export default function JuWelcomeMusic() {
         ref={audioRef}
         src="/audio/ju-welcome.mp3"
         preload="auto"
-        onPlay={() => setPlaying(true)}
-        onPause={() => setPlaying(false)}
+        onPlay={(event) => {
+          setPlaying(true);
+          notifyMascot({ type: "music", playing: true, time: event.currentTarget.currentTime });
+        }}
+        onPause={(event) => {
+          setPlaying(false);
+          notifyMascot({ type: "music", playing: false, time: event.currentTarget.currentTime });
+        }}
         onEnded={() => {
           setPlaying(false);
           setPosition(45);
+          notifyMascot({ type: "music", playing: false, time: 45 });
         }}
-        onTimeUpdate={(event) => setPosition(Math.min(45, event.currentTarget.currentTime))}
+        onTimeUpdate={(event) => {
+          setPosition(Math.min(45, event.currentTarget.currentTime));
+          notifyMascot({
+            type: "music",
+            playing: !event.currentTarget.paused,
+            time: event.currentTarget.currentTime,
+          });
+        }}
         onError={() => {
           setPlaying(false);
+          notifyMascot({ type: "music", playing: false, time: 0 });
           setNotice("A música não carregou. Confira sua conexão.");
         }}
       />

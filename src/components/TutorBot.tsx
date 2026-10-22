@@ -1,5 +1,7 @@
+import { notifyMascot } from "../lib/mascot-events";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import BearMascot from "./BearMascot";
+import DraggableMascot from "./DraggableMascot";
 import "./bear-mascot.css";
 import type { Questao2027 } from "../data/exame2027";
 import { conversarComJuju } from "../lib/tutor-chat.functions";
@@ -289,6 +291,7 @@ export default function TutorBot({
     const limpa = mensagem.trim();
     if ((!limpa && !acao) || trabalhandoRef.current) return;
     trabalhandoRef.current = true;
+    notifyMascot({ type: "thinking", active: true });
     reconhecedorRef.current?.stop();
     setTexto("");
     setAvisoVoz("");
@@ -322,6 +325,7 @@ export default function TutorBot({
       if (veioDaVoz || vozAtivaRef.current) falarResposta(respostaErro);
     } finally {
       trabalhandoRef.current = false;
+      notifyMascot({ type: "thinking", active: false });
       setCarregando(false);
       if (vozAtivaRef.current && !falandoRef.current) iniciarEscuta();
     }
@@ -389,7 +393,7 @@ export default function TutorBot({
   return (
     <>
       {!estaAberto && (
-        <aside className="bear-dock" aria-label="Seu companheiro de estudos">
+        <DraggableMascot>
           {mostrarSaudacao && (
             <div className="bear-greeting">
               <button
@@ -411,13 +415,15 @@ export default function TutorBot({
             onClick={abrirUrso}
             aria-label="Conversar com o ursinho Juju"
             className="bear-launcher"
+            data-bear-drag
+            aria-describedby="bear-drag-help"
             onMouseEnter={() => animar("wave")}
             onFocus={() => animar("wave")}
           >
             <BearMascot gesto={gesto} falando={falando} />
             <span className="bear-name">Juju · seu companheiro</span>
           </button>
-        </aside>
+        </DraggableMascot>
       )}
 
       {estaAberto && (
