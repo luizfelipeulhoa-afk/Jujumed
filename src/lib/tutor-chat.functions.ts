@@ -2,11 +2,16 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { TODAS_QUESTOES_2027 } from "../data/exame2027";
 import { geminiFailure, type JujuChatResult } from "./gemini-connection";
+import { GEMINI_VOICE_IDS, GEMINI_TTS_MODELS } from "./gemini-voices";
 
 const entradaSchema = z
   .object({
     mensagem: z.string().trim().max(4000).default(""),
-    acao: z.enum(["greeting", "stethoscope", "breathe"]).optional(),
+    acao: z.enum(["greeting", "stethoscope", "breathe", "speech"]).optional(),
+    voz: z.enum(GEMINI_VOICE_IDS).default("Sulafat"),
+    modeloVoz: z.enum(["fast", "quality"]).default("fast"),
+    estiloVoz: z.enum(["warm", "calm", "bright", "neutral"]).default("warm"),
+    ritmoVoz: z.enum(["normal", "slow", "fast"]).default("normal"),
     nome: z.string().trim().max(80).optional(),
     horaLocal: z.number().int().min(0).max(23).optional(),
     questaoId: z.string().optional(),
@@ -21,7 +26,10 @@ const entradaSchema = z
       .optional(),
   })
   .refine(
-    (data) => Boolean(data.acao || data.mensagem),
+    (data) =>
+      data.acao === "speech"
+        ? Boolean(data.mensagem) && data.mensagem.length <= 1000
+        : Boolean(data.acao || data.mensagem),
     "Envie uma mensagem ou escolha uma interação.",
   );
 
@@ -29,6 +37,16 @@ export const conversarComJuju = createServerFn({ method: "POST" })
   .inputValidator((input) => entradaSchema.parse(input))
   .handler(async ({ data }): Promise<JujuChatResult> => {
     try {
+      if (data.acao === "speech") {
+        const { generateGeminiSpeech } = await import("./gemini-speech.server");
+        const { getRequest } = await import("@tanstack/react-start/server");
+        const audio = await generateGeminiSpeech(
+          data.mensagem,
+          { voice: data.voz, model: data.modeloVoz, style: data.estiloVoz, pace: data.ritmoVoz },
+          getRequest().signal,
+        );
+        return { ok: true, text: data.mensagem, audio };
+      }
       const questao = data.questaoId
         ? TODAS_QUESTOES_2027.find((item) => item.id === data.questaoId)
         : undefined;
@@ -64,6 +82,12 @@ export const conversarComJuju = createServerFn({ method: "POST" })
       const { geminiDiagnostic } = await import("./gemini-native.server");
       const diagnostic = geminiDiagnostic(error);
       console.error("[Gemini chat]", failure.code, diagnostic ?? "sem diagnóstico de chamada");
-      return { ...failure, ...(diagnostic ? { diagnostic } : {}) };
+      const message =
+        data.acao === "speech"
+          ? failure.code === "model"
+            ? `O modelo de voz ${GEMINI_TTS_MODELS[data.modeloVoz]} não está disponível para esta chave. Confira o acesso no Google AI Studio.`
+            : `Não consegui gerar a voz do Gemini. ${failure.message}`
+          : failure.message;
+      return { ...failure, message, ...(diagnostic ? { diagnostic } : {}) };
     }
   });

@@ -18,8 +18,8 @@ type Diagnostic = {
   model: string;
   attempt: number;
   elapsedMs: number;
-  http?: number;
-  finish?: string;
+  http?: number | undefined;
+  finish?: string | undefined;
   kind: string;
 };
 const diagnostics = new WeakMap<object, Diagnostic>();
@@ -42,9 +42,9 @@ export class GeminiHttpError extends Error {
 
 export function getGeminiSettings() {
   const key =
-    process.env.GEMINI_API_KEY?.trim() ||
-    process.env.GOOGLE_API_KEY?.trim() ||
-    process.env.AI_API_KEY?.trim();
+    process.env["GEMINI_API_KEY"]?.trim() ||
+    process.env["GOOGLE_API_KEY"]?.trim() ||
+    process.env["AI_API_KEY"]?.trim();
   if (!key) throw new GeminiConfigurationError();
   // This companion is pinned to the model explicitly requested by the owner.
   return { key, model: CHAT_MODEL };

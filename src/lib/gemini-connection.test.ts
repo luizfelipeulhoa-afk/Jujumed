@@ -47,9 +47,9 @@ test("native Google requests stay on Gemini 3.8 and handle response format and q
   try {
     names.forEach((name) => delete process.env[name]);
     assert.throws(getGeminiSettings, GeminiConfigurationError);
-    process.env.AI_API_KEY = " test-native-google-key ";
-    process.env.GEMINI_MODEL = "gemini-3.1-flash-lite";
-    process.env.AI_MODEL = "gemini-older-model";
+    process.env["AI_API_KEY"] = " test-native-google-key ";
+    process.env["GEMINI_MODEL"] = "gemini-3.1-flash-lite";
+    process.env["AI_MODEL"] = "gemini-older-model";
     assert.equal(getGeminiSettings().model, "gemini-3.8-flash");
     let generationCalls = 0;
     globalThis.fetch = async (url, init) => {
@@ -79,7 +79,7 @@ test("native Google requests stay on Gemini 3.8 and handle response format and q
     assert.equal(await generateGeminiReply(messages), "Oi, Ju!");
     assert.equal(generationCalls, 2);
 
-    process.env.GEMINI_MODEL = " models/gemini-custom-flash ";
+    process.env["GEMINI_MODEL"] = " models/gemini-custom-flash ";
     globalThis.fetch = async (url) => {
       assert.ok(String(url).endsWith("models/gemini-3.8-flash:generateContent"));
       return Response.json({ error: { message: "Quota exhausted", code: 429 } }, { status: 429 });

@@ -3,6 +3,16 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from "react"
 import BearMascot from "./BearMascot";
 import DraggableMascot from "./DraggableMascot";
 import "./bear-mascot.css";
+import { useGeminiSpeech } from "./useGeminiSpeech";
+import {
+  DEFAULT_GEMINI_VOICE,
+  GEMINI_VOICE_IDS,
+  GEMINI_VOICE_LABELS,
+  GEMINI_STYLES,
+  GEMINI_PACES,
+  restoreGeminiVoice,
+  type GeminiVoiceSettings,
+} from "../lib/gemini-voices";
 import type { Questao2027 } from "../data/exame2027";
 import { conversarComJuju } from "../lib/tutor-chat.functions";
 import { jujuResponse, JujuConnectionError } from "../lib/gemini-connection";
@@ -22,7 +32,7 @@ interface Mensagem {
   texto: string;
   erro?: boolean;
   pendente?: boolean;
-  diagnostic?: string;
+  diagnostic?: string | undefined;
 }
 
 interface ResultadoReconhecimento {
@@ -161,15 +171,17 @@ export default function TutorBot({
   const [avisoVoz, setAvisoVoz] = useState("");
   const [vozDisponivel, setVozDisponivel] = useState(false);
   const [sinteseDisponivel, setSinteseDisponivel] = useState(false);
-  const [vozes, setVozes] = useState<SpeechSynthesisVoice[]>([]);
-  const [vozEscolhida, setVozEscolhida] = useState("");
-  const vozEscolhidaRef = useRef("");
+  const [vozGemini, setVozGemini] = useState<GeminiVoiceSettings>(DEFAULT_GEMINI_VOICE);
+  const vozGeminiRef = useRef<GeminiVoiceSettings>(DEFAULT_GEMINI_VOICE);
+  const falaJobRef = useRef(0);
+  const geminiSpeech = useGeminiSpeech(perfilId);
+  const [lerRespostas, setLerRespostas] = useState(true);
+  const lerRespostasRef = useRef(true);
   const rolagemRef = useRef<HTMLDivElement>(null);
   const reconhecedorRef = useRef<ReconhecedorVoz | null>(null);
   const vozAtivaRef = useRef(false);
   const trabalhandoRef = useRef(false);
   const falandoRef = useRef(false);
-  const falaRef = useRef<SpeechSynthesisUtterance | null>(null);
   const [vozAtiva, setVozAtiva] = useState(false);
   const questaoAtivaIdRef = useRef<string | undefined>(questaoAtiva?.id);
   const enviarMensagemRef = useRef<(mensagem: string, veioDaVoz?: boolean) => Promise<void>>(
@@ -180,38 +192,39 @@ export default function TutorBot({
   const estaAberto = aberto || abertoExternamente;
 
   useEffect(() => {
-    let saved = "";
+    falaJobRef.current++;
+    vozAtivaRef.current = false;
+    setVozAtiva(false);
+    falandoRef.current = false;
+    setFalando(false);
+    const reconhecedor = reconhecedorRef.current;
+    reconhecedorRef.current = null;
+    reconhecedor?.abort();
+    setOuvindo(false);
+    let settings = DEFAULT_GEMINI_VOICE;
     try {
-      saved = localStorage.getItem(`totem-voice:${perfilId ?? "visitante"}`) ?? "";
+      settings = restoreGeminiVoice(
+        JSON.parse(localStorage.getItem(`totem-gemini-voice:${perfilId ?? "visitante"}`) ?? "null"),
+      );
     } catch {
       /* Storage is optional. */
     }
-    vozEscolhidaRef.current = saved;
-    setVozEscolhida(saved);
+    vozGeminiRef.current = settings;
+    setVozGemini(settings);
+    let read = true;
+    try {
+      read = localStorage.getItem(`totem-gemini-read:${perfilId ?? "visitante"}`) !== "false";
+    } catch {
+      /* Storage is optional. */
+    }
+    lerRespostasRef.current = read;
+    setLerRespostas(read);
   }, [perfilId]);
 
   useEffect(() => {
-    if (!("speechSynthesis" in window)) return;
-    setSinteseDisponivel(true);
-    const update = () =>
-      setVozes(
-        [...window.speechSynthesis.getVoices()].sort((a, b) => {
-          const rank = (voice: SpeechSynthesisVoice) =>
-            /^pt[-_]br$/i.test(voice.lang) ? 0 : /^pt/i.test(voice.lang) ? 1 : 2;
-          return rank(a) - rank(b) || a.name.localeCompare(b.name);
-        }),
-      );
-    update();
-    window.speechSynthesis.addEventListener("voiceschanged", update);
-    return () => window.speechSynthesis.removeEventListener("voiceschanged", update);
-  }, []);
-
-  useEffect(() => {
     const janela = window as JanelaComVoz;
-    setVozDisponivel(
-      Boolean(janela.SpeechRecognition || janela.webkitSpeechRecognition) &&
-        "speechSynthesis" in window,
-    );
+    setVozDisponivel(Boolean(janela.SpeechRecognition || janela.webkitSpeechRecognition));
+    setSinteseDisponivel("AudioContext" in window || "webkitAudioContext" in window);
   }, []);
 
   useEffect(() => {
@@ -221,14 +234,19 @@ export default function TutorBot({
   const pararVoz = useCallback(() => {
     vozAtivaRef.current = false;
     setVozAtiva(false);
-    falaRef.current = null;
+    falaJobRef.current++;
+    geminiSpeech.stop();
     falandoRef.current = false;
     reconhecedorRef.current?.abort();
     reconhecedorRef.current = null;
-    window.speechSynthesis?.cancel();
     setOuvindo(false);
     setFalando(false);
-  }, []);
+  }, [geminiSpeech.stop]);
+
+  useEffect(() => {
+    painelAbertoRef.current = estaAberto;
+    if (!estaAberto) pararVoz();
+  }, [estaAberto, pararVoz]);
 
   const iniciarEscuta = useCallback(() => {
     if (
@@ -288,47 +306,50 @@ export default function TutorBot({
   }, [pararVoz]);
 
   const falarResposta = useCallback(
-    (resposta: string, avulsa = false) => {
-      if ((!vozAtivaRef.current && !avulsa) || !("speechSynthesis" in window)) return;
+    async (resposta: string, avulsa = false) => {
+      if (!vozAtivaRef.current && !avulsa) return;
+      const current = ++falaJobRef.current;
       const reconhecedor = reconhecedorRef.current;
       reconhecedorRef.current = null;
       reconhecedor?.abort();
       setOuvindo(false);
-      falaRef.current = null;
-      window.speechSynthesis.cancel();
-      const fala = new SpeechSynthesisUtterance(resposta);
-      falaRef.current = fala;
-      fala.lang = "pt-BR";
-      fala.rate = 1;
-      const available = window.speechSynthesis.getVoices();
-      const selected =
-        available.find((voz) => voz.voiceURI === vozEscolhidaRef.current) ??
-        available.find((voz) => /^pt[-_]br$/i.test(voz.lang)) ??
-        available.find((voz) => /^pt/i.test(voz.lang));
-      if (selected) {
-        fala.voice = selected;
-        fala.lang = selected.lang;
-      }
       falandoRef.current = true;
       setFalando(true);
-      fala.onend = () => {
-        if (falaRef.current !== fala) return;
-        falaRef.current = null;
-        falandoRef.current = false;
-        setFalando(false);
-        if (vozAtivaRef.current) iniciarEscuta();
-      };
-      fala.onerror = () => {
-        if (falaRef.current !== fala) return;
-        falaRef.current = null;
-        falandoRef.current = false;
-        setFalando(false);
-        if (vozAtivaRef.current) iniciarEscuta();
-      };
-      window.speechSynthesis.speak(fala);
+      setAvisoVoz("");
+      try {
+        await geminiSpeech.speak(resposta, vozGeminiRef.current);
+      } catch (error) {
+        if (current !== falaJobRef.current) return;
+        vozAtivaRef.current = false;
+        setVozAtiva(false);
+        setAvisoVoz(
+          error instanceof Error ? error.message : "Não consegui reproduzir a voz do Gemini agora.",
+        );
+      } finally {
+        if (current === falaJobRef.current) {
+          falandoRef.current = false;
+          setFalando(false);
+          if (vozAtivaRef.current) iniciarEscuta();
+        }
+      }
     },
-    [iniciarEscuta],
+    [geminiSpeech.speak, iniciarEscuta],
   );
+
+  function atualizarVoz(patch: Partial<GeminiVoiceSettings>) {
+    pararVoz();
+    const settings = restoreGeminiVoice({ ...vozGeminiRef.current, ...patch });
+    vozGeminiRef.current = settings;
+    setVozGemini(settings);
+    try {
+      localStorage.setItem(
+        `totem-gemini-voice:${perfilId ?? "visitante"}`,
+        JSON.stringify(settings),
+      );
+    } catch {
+      /* Storage is optional. */
+    }
+  }
 
   function brincar(acao: "wave" | "stethoscope" | "breathe") {
     if (trabalhandoRef.current) return;
@@ -337,6 +358,7 @@ export default function TutorBot({
   }
 
   async function abrirUrso() {
+    void geminiSpeech.unlock().catch(() => {});
     painelAbertoRef.current = true;
     setAberto(true);
     setMostrarSaudacao(false);
@@ -347,7 +369,8 @@ export default function TutorBot({
     }
     try {
       const resposta = await saudacaoPromiseRef.current;
-      if (painelAbertoRef.current && !trabalhandoRef.current) falarResposta(resposta, true);
+      if (painelAbertoRef.current && lerRespostasRef.current && !trabalhandoRef.current)
+        void falarResposta(resposta, true);
     } catch {
       setAvisoVoz("O Gemini não respondeu. Use Dar um oi para tentar novamente.");
     }
@@ -360,6 +383,8 @@ export default function TutorBot({
   ) {
     const limpa = mensagem.trim();
     if ((!limpa && !acao) || trabalhandoRef.current) return;
+    if (veioDaVoz || vozAtivaRef.current || lerRespostasRef.current || acao)
+      void geminiSpeech.unlock().catch(() => {});
     trabalhandoRef.current = true;
     notifyMascot({ type: "thinking", active: true });
     reconhecedorRef.current?.stop();
@@ -386,8 +411,11 @@ export default function TutorBot({
         }),
       );
       setMensagens((atuais) => [...atuais, { id: proximoId++, autor: "jujubot", texto: resposta }]);
-      if (acao && painelAbertoRef.current) falarResposta(resposta, true);
-      else if (veioDaVoz || vozAtivaRef.current) falarResposta(resposta);
+      if (
+        painelAbertoRef.current &&
+        (acao || veioDaVoz || vozAtivaRef.current || lerRespostasRef.current)
+      )
+        void falarResposta(resposta, true);
     } catch (erro) {
       const respostaErro =
         erro instanceof Error
@@ -403,7 +431,6 @@ export default function TutorBot({
           diagnostic: erro instanceof JujuConnectionError ? erro.diagnostic : undefined,
         },
       ]);
-      if (veioDaVoz || vozAtivaRef.current) falarResposta(respostaErro);
     } finally {
       trabalhandoRef.current = false;
       notifyMascot({ type: "thinking", active: false });
@@ -435,6 +462,7 @@ export default function TutorBot({
       );
       return;
     }
+    void geminiSpeech.unlock().catch(() => {});
     vozAtivaRef.current = true;
     setVozAtiva(true);
     setAvisoVoz("Conversa por voz ativada. Pode falar quando o microfone estiver ouvindo.");
@@ -452,9 +480,8 @@ export default function TutorBot({
     () => () => {
       vozAtivaRef.current = false;
       painelAbertoRef.current = false;
-      falaRef.current = null;
+      falaJobRef.current++;
       reconhecedorRef.current?.abort();
-      window.speechSynthesis?.cancel();
     },
     [],
   );
@@ -536,7 +563,13 @@ export default function TutorBot({
                 <span
                   className={`h-1.5 w-1.5 rounded-full ${ouvindo ? "animate-pulse bg-emerald-400" : falando ? "animate-pulse bg-cyan-300" : "bg-[#83baa7]"}`}
                 />
-                {ouvindo ? "Estou ouvindo" : falando ? "Respondendo por voz" : "Tutora UERJ 2027"}
+                {geminiSpeech.generating
+                  ? "Gerando voz no Gemini…"
+                  : ouvindo
+                    ? "Estou ouvindo"
+                    : falando
+                      ? "Respondendo com a voz do Gemini"
+                      : "Tutora UERJ 2027"}
               </div>
             </div>
             <button
@@ -560,55 +593,125 @@ export default function TutorBot({
           </header>
 
           <details className="shrink-0 border-b border-white/10 bg-[#151f29] px-4 py-2 text-xs text-[#d7e5e2]">
-            <summary className="cursor-pointer py-1 font-semibold">Voz do Totem</summary>
-            <label htmlFor="totem-voice" className="mt-2 block">
-              Escolha a voz de leitura
-            </label>
-            <div className="mt-1 flex items-center gap-2">
-              <select
-                id="totem-voice"
-                value={vozEscolhida}
-                disabled={!sinteseDisponivel}
-                className="min-w-0 flex-1 rounded-lg border border-white/20 bg-[#0e151d] p-2 text-white focus:outline-2 focus:outline-[#d4a574]"
+            <summary className="cursor-pointer py-1 font-semibold">
+              Voz do Gemini · {vozGemini.voice}
+            </summary>
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              <label className="col-span-2">
+                Voz do Gemini
+                <select
+                  aria-label="Escolher voz do Gemini"
+                  value={vozGemini.voice}
+                  onChange={(event) =>
+                    atualizarVoz({ voice: event.target.value as GeminiVoiceSettings["voice"] })
+                  }
+                  className="mt-1 w-full rounded-lg border border-white/20 bg-[#0e151d] p-2 text-white"
+                >
+                  {GEMINI_VOICE_IDS.map((voice, index) => (
+                    <option key={voice} value={voice}>
+                      {voice} · {GEMINI_VOICE_LABELS[index]}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="col-span-2">
+                Modelo de voz
+                <select
+                  aria-label="Modelo de voz do Gemini"
+                  value={vozGemini.model}
+                  onChange={(event) =>
+                    atualizarVoz({ model: event.target.value as GeminiVoiceSettings["model"] })
+                  }
+                  className="mt-1 w-full rounded-lg border border-white/20 bg-[#0e151d] p-2 text-white"
+                >
+                  <option value="fast">Gemini 3.8 Flash-Lite TTS · mais rápido</option>
+                  <option value="quality">Gemini 3.8 Flash TTS · maior qualidade</option>
+                </select>
+              </label>
+              <label>
+                Tom
+                <select
+                  aria-label="Tom da voz"
+                  value={vozGemini.style}
+                  onChange={(event) =>
+                    atualizarVoz({ style: event.target.value as GeminiVoiceSettings["style"] })
+                  }
+                  className="mt-1 w-full rounded-lg border border-white/20 bg-[#0e151d] p-2 text-white"
+                >
+                  {Object.entries(GEMINI_STYLES).map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Ritmo
+                <select
+                  aria-label="Ritmo da voz"
+                  value={vozGemini.pace}
+                  onChange={(event) =>
+                    atualizarVoz({ pace: event.target.value as GeminiVoiceSettings["pace"] })
+                  }
+                  className="mt-1 w-full rounded-lg border border-white/20 bg-[#0e151d] p-2 text-white"
+                >
+                  {Object.entries(GEMINI_PACES).map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <button
+                type="button"
+                disabled={!sinteseDisponivel || carregando || geminiSpeech.generating}
+                className="rounded-lg border border-[#d4a574]/50 px-3 py-2 disabled:opacity-40"
+                onClick={() => {
+                  void geminiSpeech.unlock().catch(() => {});
+                  void falarResposta(
+                    "Oi, Ju! Sou o Totem da sabedoria. Conte comigo para estudar, aprender e seguir em frente.",
+                    true,
+                  );
+                }}
+              >
+                Ouvir amostra
+              </button>
+              {(falando || geminiSpeech.generating) && (
+                <button
+                  type="button"
+                  className="rounded-lg border border-white/30 px-3 py-2"
+                  onClick={pararVoz}
+                >
+                  Parar áudio
+                </button>
+              )}
+            </div>
+            <label className="mt-2 flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={lerRespostas}
                 onChange={(event) => {
-                  const value = event.target.value;
-                  vozEscolhidaRef.current = value;
-                  setVozEscolhida(value);
+                  const read = event.target.checked;
+                  lerRespostasRef.current = read;
+                  setLerRespostas(read);
+                  if (!read) pararVoz();
                   try {
-                    localStorage.setItem(`totem-voice:${perfilId ?? "visitante"}`, value);
+                    localStorage.setItem(
+                      `totem-gemini-read:${perfilId ?? "visitante"}`,
+                      String(read),
+                    );
                   } catch {
                     /* Storage is optional. */
                   }
                 }}
-              >
-                <option value="">Automática · Português</option>
-                {vozEscolhida && !vozes.some((voz) => voz.voiceURI === vozEscolhida) && (
-                  <option value={vozEscolhida}>Voz salva indisponível · usando automática</option>
-                )}
-                {vozes.map((voz) => (
-                  <option key={voz.voiceURI} value={voz.voiceURI}>
-                    {voz.name} · {voz.lang}
-                  </option>
-                ))}
-              </select>
-              <button
-                type="button"
-                disabled={!sinteseDisponivel || carregando}
-                className="shrink-0 rounded-lg border border-[#d4a574]/50 px-2 py-2 disabled:opacity-40"
-                onClick={() =>
-                  falarResposta(
-                    "Oi, Ju! Sou o Totem da sabedoria. Esta é a voz que você escolheu.",
-                    true,
-                  )
-                }
-              >
-                Ouvir amostra
-              </button>
-            </div>
+              />
+              Ler respostas em voz alta
+            </label>
             <p className="mt-2 text-[11px] text-[#9eacb5]">
-              {sinteseDisponivel
-                ? "O Gemini escreve as respostas; a voz é do navegador. As opções variam por dispositivo."
-                : "Este navegador não oferece leitura em voz alta."}
+              Voz gerada pelo Gemini em português brasileiro. Usa a cota de áudio do seu projeto
+              Google; disponibilidade depende da chave.
             </p>
           </details>
 
@@ -616,13 +719,15 @@ export default function TutorBot({
             <BearMascot gesto={ouvindo ? "stethoscope" : gesto} falando={falando} />
             <div className="bear-play-actions">
               <p>
-                {ouvindo
-                  ? "Pode falar. Estou ouvindo!"
-                  : falando
-                    ? "Uma conversa de coração."
-                    : gesto === "breathe"
-                      ? "Inspire… e solte o ar, no seu ritmo."
-                      : "Um abraço e um passo de cada vez."}
+                {geminiSpeech.generating
+                  ? "Preparando a voz do Gemini…"
+                  : ouvindo
+                    ? "Pode falar. Estou ouvindo!"
+                    : falando
+                      ? "Uma conversa de coração."
+                      : gesto === "breathe"
+                        ? "Inspire… e solte o ar, no seu ritmo."
+                        : "Um abraço e um passo de cada vez."}
               </p>
               <div>
                 <button type="button" disabled={carregando} onClick={() => brincar("wave")}>
@@ -638,6 +743,23 @@ export default function TutorBot({
             </div>
           </div>
 
+          {(falando || geminiSpeech.generating) && (
+            <div
+              className="flex shrink-0 items-center justify-between gap-2 border-b border-white/10 px-4 py-2 text-xs text-[#b5d5cd]"
+              role="status"
+            >
+              <span>
+                {geminiSpeech.generating ? "Gerando voz no Gemini…" : "Reproduzindo voz do Gemini"}
+              </span>
+              <button
+                type="button"
+                onClick={pararVoz}
+                className="rounded-lg border border-white/20 px-3 py-2"
+              >
+                Parar voz
+              </button>
+            </div>
+          )}
           {questaoAtiva && (
             <div className="border-b border-white/5 bg-[#14202a] px-4 py-2.5 text-[11px] text-[#aec1c0]">
               Questão atual:{" "}
@@ -664,6 +786,19 @@ export default function TutorBot({
                     </span>
                   )}
                   {mensagem.texto}
+                  {mensagem.autor === "jujubot" && !mensagem.erro && !mensagem.pendente && (
+                    <button
+                      type="button"
+                      disabled={carregando || !sinteseDisponivel}
+                      onClick={() => {
+                        void geminiSpeech.unlock().catch(() => {});
+                        void falarResposta(mensagem.texto, true);
+                      }}
+                      className="mt-2 block rounded-lg border border-white/15 px-3 py-1.5 text-xs text-[#91d8cb] disabled:opacity-40"
+                    >
+                      Ouvir com o Gemini
+                    </button>
+                  )}
                   {mensagem.diagnostic && (
                     <details className="mt-2 text-[11px] text-[#a9b5be]">
                       <summary className="cursor-pointer">Detalhes da conexão</summary>

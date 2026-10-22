@@ -9,13 +9,20 @@ export type GeminiFailureCode =
   | "empty_response"
   | "connection";
 export type JujuChatResult =
-  | { ok: true; text: string }
+  | { ok: true; text: string; audio?: import("./gemini-voices").GeminiAudio }
   | { ok: false; code: GeminiFailureCode; message: string; diagnostic?: string };
 
 export class GeminiEmptyResponseError extends Error {
   constructor(public finishReason: string) {
     super("Gemini returned no visible text");
     this.name = "GeminiEmptyResponseError";
+  }
+}
+
+export class GeminiAudioError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "GeminiAudioError";
   }
 }
 
@@ -63,6 +70,7 @@ export function geminiFailure(error: unknown): Extract<JujuChatResult, { ok: fal
     code,
     message,
   });
+  if (error instanceof GeminiAudioError) return fail("empty_response", error.message);
   if (error instanceof GeminiEmptyResponseError || current instanceof GeminiEmptyResponseError)
     return fail(
       "empty_response",
