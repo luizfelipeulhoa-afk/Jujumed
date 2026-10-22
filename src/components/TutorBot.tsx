@@ -76,7 +76,9 @@ export default function TutorBot({
   onLimparPerguntaInicial,
 }: Props) {
   const [aberto, setAberto] = useState(false);
-  const [saudacao, setSaudacao] = useState("Juju está preparando uma saudação para você…");
+  const [saudacao, setSaudacao] = useState(
+    "O Totem da sabedoria está preparando uma saudação para você…",
+  );
   const [mostrarSaudacao, setMostrarSaudacao] = useState(true);
   const [recadoFechado, setRecadoFechado] = useState(false);
   const mostrarRecado = perfilId === "jujuba" && !recadoFechado;
@@ -128,7 +130,7 @@ export default function TutorBot({
     {
       id: 0,
       autor: "jujubot",
-      texto: "Juju está preparando uma saudação para você…",
+      texto: "O Totem da sabedoria está preparando uma saudação para você…",
     },
   ]);
   const [texto, setTexto] = useState("");
@@ -427,14 +429,14 @@ export default function TutorBot({
                   : saudacao}
               </p>
               <button type="button" className="bear-greeting-action" onClick={abrirUrso}>
-                Conversar com o Juju ↗
+                Conversar com o Totem da sabedoria ↗
               </button>
             </div>
           )}
           <button
             type="button"
             onClick={abrirUrso}
-            aria-label="Conversar com o ursinho Juju"
+            aria-label="Conversar com o Totem da sabedoria"
             className="bear-launcher"
             data-bear-drag
             aria-describedby="bear-drag-help"
@@ -442,7 +444,7 @@ export default function TutorBot({
             onFocus={() => animar("wave")}
           >
             <BearMascot gesto={gesto} falando={falando} />
-            <span className="bear-name">Juju · seu companheiro</span>
+            <span className="bear-name">Totem da sabedoria</span>
           </button>
         </DraggableMascot>
       )}
@@ -450,12 +452,14 @@ export default function TutorBot({
       {estaAberto && (
         <section
           className="jujubot-panel fixed bottom-4 right-4 z-50 flex h-[min(690px,calc(100dvh-2rem))] w-[min(430px,calc(100vw-2rem))] flex-col overflow-hidden rounded-[28px] border border-[#52697b]/70 bg-[#111a24] shadow-2xl shadow-black/50"
-          aria-label="Conversa com a JujuBot"
+          aria-label="Conversa com o Totem da sabedoria"
         >
           <header className="flex items-center gap-3 border-b border-white/10 bg-[#182431] px-4 py-3.5">
             <BearMascot pequeno gesto={ouvindo ? "stethoscope" : gesto} falando={falando} />
             <div className="min-w-0 flex-1">
-              <div className="font-display text-sm font-bold text-[#f1f4ef]">Ursinho Juju</div>
+              <div className="font-display text-sm font-bold text-[#f1f4ef]">
+                Totem da sabedoria
+              </div>
               <div className="flex items-center gap-1.5 text-[11px] text-[#9eacb5]">
                 <span
                   className={`h-1.5 w-1.5 rounded-full ${ouvindo ? "animate-pulse bg-emerald-400" : falando ? "animate-pulse bg-cyan-300" : "bg-[#83baa7]"}`}
@@ -476,7 +480,7 @@ export default function TutorBot({
             <button
               type="button"
               onClick={fechar}
-              aria-label="Fechar JujuBot"
+              aria-label="Fechar Totem da sabedoria"
               className="rounded-xl p-2 text-[#a9b5be] transition hover:bg-white/10 hover:text-white"
             >
               <CloseIcon className="h-5 w-5" />
@@ -531,7 +535,7 @@ export default function TutorBot({
                 >
                   {mensagem.autor === "jujubot" && (
                     <span className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-[#91d8cb]">
-                      Ursinho Juju
+                      Totem da sabedoria
                     </span>
                   )}
                   {mensagem.texto}
@@ -540,7 +544,7 @@ export default function TutorBot({
             ))}
             {carregando && (
               <div className="text-xs text-[#a2b2b5]" role="status">
-                Juju está pensando…
+                O Totem da sabedoria está pensando…
               </div>
             )}
           </div>
@@ -577,7 +581,7 @@ export default function TutorBot({
               type="button"
               onClick={alternarVoz}
               disabled={!vozDisponivel && !ouvindo}
-              aria-label={vozAtiva ? "Pausar voz" : "Falar com a JujuBot"}
+              aria-label={vozAtiva ? "Pausar voz" : "Falar com o Totem da sabedoria"}
               title={
                 vozDisponivel ? "Ativar conversa por voz" : "Voz não suportada neste navegador"
               }

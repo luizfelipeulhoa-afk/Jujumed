@@ -173,7 +173,9 @@ export default function Bear3D({
   return (
     <span ref={host} className="bear-3d-canvas" aria-hidden="true">
       {status !== "ready" && <span className="bear-sprite" />}
-      {status === "loading" && <span className="bear-3d-loading">Preparando o Juju…</span>}
+      {status === "loading" && (
+        <span className="bear-3d-loading">Preparando o Totem da sabedoria…</span>
+      )}
     </span>
   );
 }

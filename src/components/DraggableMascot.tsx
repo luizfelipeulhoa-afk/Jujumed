@@ -77,7 +77,7 @@ export default function DraggableMascot({ children }: { children: ReactNode }) {
     <aside
       ref={dock}
       className={`bear-dock bear-dock-3d ${dragging ? "bear-dragging" : ""} ${position && position.y < 240 ? "bear-near-top" : ""}`}
-      aria-label="Seu companheiro de estudos"
+      aria-label="Totem da sabedoria, seu companheiro de estudos"
       style={
         position
           ? ({
