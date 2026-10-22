@@ -20,17 +20,24 @@ export class GeminiConfigurationError extends Error {
 /** Send only a known, actionable message to the browser, never provider payloads or secrets. */
 export function geminiFailure(error: unknown): Extract<JujuChatResult, { ok: false }> {
   let current = error;
+  let httpError: unknown;
   const seen = new Set<unknown>();
   while (current && typeof current === "object" && !seen.has(current)) {
     seen.add(current);
-    const value = current as { lastError?: unknown; cause?: unknown };
+    const value = current as { statusCode?: number; lastError?: unknown; cause?: unknown };
+    if (typeof value.statusCode === "number") httpError = current;
     if (value.lastError) current = value.lastError;
     else if (value.cause) current = value.cause;
     else break;
   }
   const value =
-    current && typeof current === "object"
-      ? (current as { name?: string; statusCode?: number; message?: string; responseBody?: string })
+    (httpError ?? current) && typeof (httpError ?? current) === "object"
+      ? ((httpError ?? current) as {
+          name?: string;
+          statusCode?: number;
+          message?: string;
+          responseBody?: string;
+        })
       : {};
   const fail = (code: GeminiFailureCode, message: string) => ({
     ok: false as const,
@@ -61,6 +68,19 @@ export function geminiFailure(error: unknown): Extract<JujuChatResult, { ok: fal
     return fail(
       "model",
       "O modelo configurado não está disponível para esta chave. Confira GEMINI_MODEL no Cloudflare e escolha um modelo disponível no Google AI Studio.",
+    );
+  if (
+    value.statusCode === 400 &&
+    /FAILED_PRECONDITION|not available in your country|location is not supported/i.test(detail)
+  )
+    return fail(
+      "permission",
+      "O Google informou uma restrição do projeto ou da região para usar o Gemini. Confira a disponibilidade e os requisitos do projeto no Google AI Studio.",
+    );
+  if (value.statusCode === 400)
+    return fail(
+      "connection",
+      "O Google recusou o formato ou a configuração da chamada ao Gemini (HTTP 400). Confira GEMINI_MODEL e tente novamente.",
     );
   if (value.statusCode === 429 || value.statusCode === 402)
     return fail(

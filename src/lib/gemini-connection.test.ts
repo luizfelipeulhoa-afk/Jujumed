@@ -1,7 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { generateText } from "ai";
-import { getGeminiChatModel } from "./ai-provider.server";
+import { generateGeminiReply, getGeminiSettings } from "./gemini-native.server";
 import { GeminiConfigurationError, geminiFailure, jujuResponse } from "./gemini-connection";
 
 test("classifies configuration and Google failures without returning upstream secrets", () => {
@@ -16,6 +15,9 @@ test("classifies configuration and Google failures without returning upstream se
     [{ statusCode: 503 }, "unavailable"],
     [new Error("test-secret"), "connection"],
     [{ lastError: { statusCode: 429 } }, "quota"],
+    [{ statusCode: 403, cause: new Error("parser failed") }, "permission"],
+    [{ statusCode: 404, cause: new Error("parser failed") }, "model"],
+    [{ statusCode: 400, responseBody: "FAILED_PRECONDITION" }, "permission"],
   ];
   for (const [error, code] of cases) {
     const result = geminiFailure(error);
@@ -32,57 +34,89 @@ test("handles cyclic error causes and passes safe messages through the chat resu
   assert.throws(() => jujuResponse(geminiFailure(new GeminiConfigurationError())), /Secret/);
 });
 
-test("the installed SDK sends the Gemini request to Google using the server key", async () => {
+test("native Google requests handle model discovery, actual response format and quota errors", async () => {
   const names = ["GEMINI_API_KEY", "GOOGLE_API_KEY", "AI_API_KEY", "GEMINI_MODEL", "AI_MODEL"];
   const before = Object.fromEntries(names.map((name) => [name, process.env[name]]));
   const originalFetch = globalThis.fetch;
+  const messages = [
+    { role: "system" as const, content: "Você é o Totem." },
+    { role: "assistant" as const, content: "Bom dia!" },
+    { role: "user" as const, content: "Oi" },
+    { role: "user" as const, content: "Tudo bem?" },
+  ];
   try {
     names.forEach((name) => delete process.env[name]);
-    assert.throws(getGeminiChatModel, GeminiConfigurationError);
-    process.env.AI_API_KEY = "  test-google-api-key  ";
-    process.env.GEMINI_MODEL = " models/gemini-3.8-flash ";
-    globalThis.fetch = async (input, init) => {
-      assert.equal(
-        String(input),
-        "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
-      );
-      assert.equal(new Headers(init?.headers).get("Authorization"), "Bearer test-google-api-key");
+    assert.throws(getGeminiSettings, GeminiConfigurationError);
+    process.env.AI_API_KEY = " test-native-google-key ";
+    let generationCalls = 0,
+      discoveryCalls = 0;
+    globalThis.fetch = async (url, init) => {
+      assert.equal(new Headers(init?.headers).get("x-goog-api-key"), "test-native-google-key");
+      assert.ok(!String(url).includes("test-native-google-key"));
+      if (String(url).endsWith("models?pageSize=1000")) {
+        discoveryCalls++;
+        return Response.json({
+          models: [
+            {
+              name: "models/gemini-available-flash-image",
+              supportedGenerationMethods: ["generateContent"],
+            },
+            {
+              name: "models/gemini-available-flash",
+              supportedGenerationMethods: ["generateContent"],
+            },
+          ],
+        });
+      }
+      generationCalls++;
       const body = JSON.parse(String(init?.body));
-      assert.equal(body.model, "gemini-3.8-flash");
-      assert.equal(body.reasoning_effort, "low");
+      assert.deepEqual(body.systemInstruction, { parts: [{ text: "Você é o Totem." }] });
+      assert.deepEqual(body.contents, [
+        { role: "user", parts: [{ text: "Oi" }, { text: "Tudo bem?" }] },
+      ]);
+      if (String(url).includes("gemini-3.8-flash:"))
+        return Response.json(
+          { error: { code: 404, message: "Model not found", status: "NOT_FOUND" } },
+          { status: 404 },
+        );
+      assert.ok(String(url).endsWith("models/gemini-available-flash:generateContent"));
       return Response.json({
-        id: "test",
-        object: "chat.completion",
-        created: 0,
-        model: body.model,
-        choices: [
+        candidates: [
           {
-            index: 0,
-            message: { role: "assistant", content: "Bom dia, Ju!" },
-            finish_reason: "stop",
+            content: { parts: [{ text: "hidden reasoning", thought: true }, { text: "Oi, Ju!" }] },
+            finishReason: "STOP",
           },
         ],
-        usage: { prompt_tokens: 5, completion_tokens: 5, total_tokens: 10 },
       });
     };
-    const result = await generateText({
-      model: getGeminiChatModel(),
-      prompt: "Bom dia",
-      maxRetries: 0,
-      providerOptions: { openai: { reasoningEffort: "low" } },
-    });
-    assert.equal(result.text, "Bom dia, Ju!");
+    assert.equal(await generateGeminiReply(messages), "Oi, Ju!");
+    assert.equal(discoveryCalls, 1);
+    assert.equal(generationCalls, 2);
+    assert.equal(await generateGeminiReply(messages), "Oi, Ju!");
+    assert.equal(discoveryCalls, 1);
+    assert.equal(generationCalls, 3);
+
+    process.env.GEMINI_MODEL = " models/gemini-custom-flash ";
+    globalThis.fetch = async (url) => {
+      assert.ok(String(url).endsWith("models/gemini-custom-flash:generateContent"));
+      return Response.json({ error: { message: "Quota exhausted", code: 429 } }, { status: 429 });
+    };
+    await assert.rejects(
+      generateGeminiReply(messages),
+      (error) => geminiFailure(error).code === "quota",
+    );
+
     globalThis.fetch = async () =>
       Response.json(
-        { error: { message: "Quota exhausted", code: 429, status: "RESOURCE_EXHAUSTED" } },
-        { status: 429 },
+        { error: { code: 400, message: "API key not valid. test-secret" } },
+        { status: 400 },
       );
-    try {
-      await generateText({ model: getGeminiChatModel(), prompt: "Oi", maxRetries: 0 });
-      assert.fail("Expected Google quota rejection");
-    } catch (error) {
-      assert.equal(geminiFailure(error).code, "quota");
-    }
+    await assert.rejects(
+      generateGeminiReply(messages),
+      (error) =>
+        geminiFailure(error).code === "invalid_key" &&
+        !JSON.stringify(geminiFailure(error)).includes("test-secret"),
+    );
   } finally {
     globalThis.fetch = originalFetch;
     for (const name of names) {
