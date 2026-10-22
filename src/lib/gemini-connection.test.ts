@@ -34,7 +34,7 @@ test("handles cyclic error causes and passes safe messages through the chat resu
   assert.throws(() => jujuResponse(geminiFailure(new GeminiConfigurationError())), /Secret/);
 });
 
-test("native Google requests handle model discovery, actual response format and quota errors", async () => {
+test("native Google requests stay on Gemini 3.8 and handle response format and quota errors", async () => {
   const names = ["GEMINI_API_KEY", "GOOGLE_API_KEY", "AI_API_KEY", "GEMINI_MODEL", "AI_MODEL"];
   const before = Object.fromEntries(names.map((name) => [name, process.env[name]]));
   const originalFetch = globalThis.fetch;
@@ -48,38 +48,23 @@ test("native Google requests handle model discovery, actual response format and 
     names.forEach((name) => delete process.env[name]);
     assert.throws(getGeminiSettings, GeminiConfigurationError);
     process.env.AI_API_KEY = " test-native-google-key ";
-    let generationCalls = 0,
-      discoveryCalls = 0;
+    process.env.GEMINI_MODEL = "gemini-3.1-flash-lite";
+    process.env.AI_MODEL = "gemini-older-model";
+    assert.equal(getGeminiSettings().model, "gemini-3.8-flash");
+    let generationCalls = 0;
     globalThis.fetch = async (url, init) => {
+      generationCalls++;
+      assert.equal(
+        String(url),
+        "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent",
+      );
       assert.equal(new Headers(init?.headers).get("x-goog-api-key"), "test-native-google-key");
       assert.ok(!String(url).includes("test-native-google-key"));
-      if (String(url).endsWith("models?pageSize=1000")) {
-        discoveryCalls++;
-        return Response.json({
-          models: [
-            {
-              name: "models/gemini-available-flash-image",
-              supportedGenerationMethods: ["generateContent"],
-            },
-            {
-              name: "models/gemini-available-flash",
-              supportedGenerationMethods: ["generateContent"],
-            },
-          ],
-        });
-      }
-      generationCalls++;
       const body = JSON.parse(String(init?.body));
       assert.deepEqual(body.systemInstruction, { parts: [{ text: "Você é o Totem." }] });
       assert.deepEqual(body.contents, [
         { role: "user", parts: [{ text: "Oi" }, { text: "Tudo bem?" }] },
       ]);
-      if (String(url).includes("gemini-3.1-flash-lite:"))
-        return Response.json(
-          { error: { code: 404, message: "Model not found", status: "NOT_FOUND" } },
-          { status: 404 },
-        );
-      assert.ok(String(url).endsWith("models/gemini-available-flash:generateContent"));
       return Response.json({
         candidates: [
           {
@@ -90,15 +75,13 @@ test("native Google requests handle model discovery, actual response format and 
       });
     };
     assert.equal(await generateGeminiReply(messages), "Oi, Ju!");
-    assert.equal(discoveryCalls, 1);
-    assert.equal(generationCalls, 2);
+    assert.equal(generationCalls, 1);
     assert.equal(await generateGeminiReply(messages), "Oi, Ju!");
-    assert.equal(discoveryCalls, 1);
-    assert.equal(generationCalls, 3);
+    assert.equal(generationCalls, 2);
 
     process.env.GEMINI_MODEL = " models/gemini-custom-flash ";
     globalThis.fetch = async (url) => {
-      assert.ok(String(url).endsWith("models/gemini-custom-flash:generateContent"));
+      assert.ok(String(url).endsWith("models/gemini-3.8-flash:generateContent"));
       return Response.json({ error: { message: "Quota exhausted", code: 429 } }, { status: 429 });
     };
     await assert.rejects(

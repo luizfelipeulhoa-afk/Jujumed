@@ -1,12 +1,10 @@
 import { GeminiConfigurationError, GeminiEmptyResponseError } from "./gemini-connection";
 
 const BASE = "https://generativelanguage.googleapis.com/v1beta";
-const DEFAULT_MODEL = "gemini-3.1-flash-lite";
+const CHAT_MODEL = "gemini-3.8-flash";
 type Message = { role: "system" | "user" | "assistant"; content: string };
-type ModelInfo = { name?: string; supportedGenerationMethods?: string[] };
 type GoogleResponse = {
   error?: { message?: string; status?: string };
-  models?: ModelInfo[];
   candidates?: Array<{
     content?: { parts?: Array<{ text?: string; thought?: boolean }> };
     finishReason?: string;
@@ -48,20 +46,12 @@ export function getGeminiSettings() {
     process.env.GOOGLE_API_KEY?.trim() ||
     process.env.AI_API_KEY?.trim();
   if (!key) throw new GeminiConfigurationError();
-  const configured = (process.env.GEMINI_MODEL?.trim() || process.env.AI_MODEL?.trim())?.replace(
-    /^models\//,
-    "",
-  );
-  const model = configured?.startsWith("gemini-") ? configured : DEFAULT_MODEL;
-  if (!/^gemini-[a-zA-Z0-9._-]+$/.test(model)) throw new GeminiHttpError(404, "Invalid model name");
-  return { key, model, explicitModel: Boolean(configured?.startsWith("gemini-")) };
+  // This companion is pinned to the model explicitly requested by the owner.
+  return { key, model: CHAT_MODEL };
 }
 
-// A discovered fallback is scoped to the same key and requested default, on the server only.
-let fallback: { key: string; model: string; expires: number } | undefined;
-
 export async function generateGeminiReply(messages: Message[]): Promise<string> {
-  const { key, model, explicitModel } = getGeminiSettings();
+  const { key, model } = getGeminiSettings();
   const deadline = AbortSignal.timeout(65000);
   const startedAt = Date.now();
   const id = crypto.randomUUID();
@@ -156,35 +146,7 @@ export async function generateGeminiReply(messages: Message[]): Promise<string> 
       },
     });
   }
-  const selected =
-    !explicitModel && fallback?.key === key && fallback.expires > Date.now()
-      ? fallback.model
-      : model;
-  let result: GoogleResponse;
-  try {
-    result = await generate(selected);
-  } catch (error) {
-    if (!(error instanceof GeminiHttpError) || error.statusCode !== 404 || explicitModel)
-      throw error;
-    const available = await request("models?pageSize=1000");
-    const names = (available.models ?? [])
-      .filter(
-        (m) =>
-          m.supportedGenerationMethods?.includes("generateContent") &&
-          /^models\/gemini-[a-zA-Z0-9._-]*flash[a-zA-Z0-9._-]*$/.test(m.name ?? "") &&
-          !/image|tts|audio|live|robotics|computer-use/.test(m.name ?? ""),
-      )
-      .map((m) => m.name!.replace(/^models\//, ""));
-    // Prefer a stable general-purpose Flash model from the list Google actually returned.
-    const alternative =
-      names.find((name) => /lite/.test(name) && !/preview|exp/.test(name)) ??
-      names.find((name) => !/preview|exp|lite/.test(name)) ??
-      names.find((name) => !/preview|exp/.test(name)) ??
-      names[0];
-    if (!alternative || alternative === selected) throw error;
-    result = await generate(alternative);
-    fallback = { key, model: alternative, expires: Date.now() + 15 * 60 * 1000 };
-  }
+  let result = await generate(model);
   const answerText = (response: GoogleResponse) =>
     response.candidates?.[0]?.content?.parts
       ?.filter((part) => !part.thought)
