@@ -6,9 +6,28 @@ export type GeminiFailureCode =
   | "quota"
   | "timeout"
   | "unavailable"
+  | "empty_response"
   | "connection";
 export type JujuChatResult =
-  { ok: true; text: string } | { ok: false; code: GeminiFailureCode; message: string };
+  | { ok: true; text: string }
+  | { ok: false; code: GeminiFailureCode; message: string; diagnostic?: string };
+
+export class GeminiEmptyResponseError extends Error {
+  constructor(public finishReason: string) {
+    super("Gemini returned no visible text");
+    this.name = "GeminiEmptyResponseError";
+  }
+}
+
+export class JujuConnectionError extends Error {
+  constructor(
+    message: string,
+    public diagnostic?: string,
+  ) {
+    super(message);
+    this.name = "JujuConnectionError";
+  }
+}
 
 export class GeminiConfigurationError extends Error {
   constructor() {
@@ -44,6 +63,11 @@ export function geminiFailure(error: unknown): Extract<JujuChatResult, { ok: fal
     code,
     message,
   });
+  if (error instanceof GeminiEmptyResponseError || current instanceof GeminiEmptyResponseError)
+    return fail(
+      "empty_response",
+      "O Gemini recebeu a pergunta, mas não enviou uma resposta em texto. Tente uma pergunta mais curta; isso não significa que a chave foi recusada.",
+    );
   if (error instanceof GeminiConfigurationError || current instanceof GeminiConfigurationError)
     return fail(
       "missing_key",
@@ -106,6 +130,6 @@ export function geminiFailure(error: unknown): Extract<JujuChatResult, { ok: fal
 }
 
 export function jujuResponse(result: JujuChatResult): string {
-  if (!result.ok) throw new Error(result.message);
+  if (!result.ok) throw new JujuConnectionError(result.message, result.diagnostic);
   return result.text;
 }

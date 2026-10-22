@@ -61,7 +61,9 @@ export const conversarComJuju = createServerFn({ method: "POST" })
       return { ok: true, text };
     } catch (error) {
       const failure = geminiFailure(error);
-      console.error("[Gemini chat]", failure.code);
-      return failure;
+      const { geminiDiagnostic } = await import("./gemini-native.server");
+      const diagnostic = geminiDiagnostic(error);
+      console.error("[Gemini chat]", failure.code, diagnostic ?? "sem diagnóstico de chamada");
+      return { ...failure, ...(diagnostic ? { diagnostic } : {}) };
     }
   });

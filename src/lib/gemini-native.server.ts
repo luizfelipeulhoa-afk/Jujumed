@@ -1,4 +1,4 @@
-import { GeminiConfigurationError } from "./gemini-connection";
+import { GeminiConfigurationError, GeminiEmptyResponseError } from "./gemini-connection";
 
 const BASE = "https://generativelanguage.googleapis.com/v1beta";
 const DEFAULT_MODEL = "gemini-3.1-flash-lite";
@@ -12,7 +12,25 @@ type GoogleResponse = {
     finishReason?: string;
   }>;
   promptFeedback?: { blockReason?: string };
+  usageMetadata?: { thoughtsTokenCount?: number; candidatesTokenCount?: number };
 };
+
+type Diagnostic = {
+  id: string;
+  model: string;
+  attempt: number;
+  elapsedMs: number;
+  http?: number;
+  finish?: string;
+  kind: string;
+};
+const diagnostics = new WeakMap<object, Diagnostic>();
+export function geminiDiagnostic(error: unknown): string | undefined {
+  if (!error || typeof error !== "object") return;
+  const d = diagnostics.get(error);
+  if (!d) return;
+  return `Referência: ${d.id}\nModelo: ${d.model}\nTipo: ${d.kind}${d.http ? ` · HTTP ${d.http}` : ""}${d.finish ? ` · Finalização ${d.finish}` : ""}\nTentativa: ${d.attempt} · Tempo: ${(d.elapsedMs / 1000).toFixed(1)} s`;
+}
 
 export class GeminiHttpError extends Error {
   constructor(
@@ -44,7 +62,24 @@ let fallback: { key: string; model: string; expires: number } | undefined;
 
 export async function generateGeminiReply(messages: Message[]): Promise<string> {
   const { key, model, explicitModel } = getGeminiSettings();
-  const deadline = AbortSignal.timeout(45000);
+  const deadline = AbortSignal.timeout(65000);
+  const startedAt = Date.now();
+  const id = crypto.randomUUID();
+  let activeModel = model,
+    activeAttempt = 1;
+  function annotate(error: unknown, kind: string, http?: number, finish?: string) {
+    if (error && typeof error === "object")
+      diagnostics.set(error, {
+        id,
+        model: activeModel,
+        attempt: activeAttempt,
+        elapsedMs: Date.now() - startedAt,
+        kind,
+        http,
+        finish,
+      });
+    return error;
+  }
   const system = messages
     .filter((m) => m.role === "system")
     .map((m) => m.content)
@@ -62,6 +97,7 @@ export async function generateGeminiReply(messages: Message[]): Promise<string> 
 
   async function request(path: string, body?: object): Promise<GoogleResponse> {
     for (let attempt = 0; attempt < 2; attempt++) {
+      activeAttempt = attempt + 1;
       try {
         const response = await fetch(`${BASE}/${path}`, {
           method: body ? "POST" : "GET",
@@ -70,7 +106,7 @@ export async function generateGeminiReply(messages: Message[]): Promise<string> 
             ...(body ? { "Content-Type": "application/json" } : {}),
           },
           ...(body ? { body: JSON.stringify(body) } : {}),
-          signal: AbortSignal.any([deadline, AbortSignal.timeout(18000)]),
+          signal: AbortSignal.any([deadline, AbortSignal.timeout(30000)]),
         });
         const text = await response.text();
         if (!response.ok) throw new GeminiHttpError(response.status, text);
@@ -84,22 +120,40 @@ export async function generateGeminiReply(messages: Message[]): Promise<string> 
           error instanceof GeminiHttpError
             ? [408, 500, 502, 503, 504].includes(error.statusCode)
             : error instanceof Error && ["TimeoutError", "AbortError"].includes(error.name);
-        if (attempt === 1 || !temporary || deadline.aborted) throw error;
+        if (attempt === 1 || !temporary || deadline.aborted)
+          throw annotate(
+            error,
+            error instanceof GeminiHttpError
+              ? "google_http"
+              : error instanceof Error && ["TimeoutError", "AbortError"].includes(error.name)
+                ? "timeout"
+                : "network",
+            error instanceof GeminiHttpError ? error.statusCode : undefined,
+          );
         await new Promise((resolve) => setTimeout(resolve, 500 + Math.random() * 250));
       }
     }
     throw new GeminiHttpError(503, "Retry budget exhausted");
   }
-  async function generate(selected: string) {
+  async function generate(selected: string, outputTokens = 4096) {
+    activeModel = selected;
     const thinkingConfig = /^gemini-3[.-]/.test(selected)
-      ? { thinkingLevel: "low" }
+      ? {
+          thinkingLevel:
+            /^gemini-3\.(1|5|6).*flash/.test(selected) || /^gemini-3-flash/.test(selected)
+              ? "minimal"
+              : "low",
+        }
       : /^gemini-2\.5-flash/.test(selected)
-        ? { thinkingBudget: 512 }
+        ? { thinkingBudget: 0 }
         : undefined;
     return request(`models/${encodeURIComponent(selected)}:generateContent`, {
       systemInstruction: { parts: [{ text: system }] },
       contents,
-      generationConfig: { maxOutputTokens: 2048, ...(thinkingConfig ? { thinkingConfig } : {}) },
+      generationConfig: {
+        maxOutputTokens: outputTokens,
+        ...(thinkingConfig ? { thinkingConfig } : {}),
+      },
     });
   }
   const selected =
@@ -131,13 +185,26 @@ export async function generateGeminiReply(messages: Message[]): Promise<string> 
     result = await generate(alternative);
     fallback = { key, model: alternative, expires: Date.now() + 15 * 60 * 1000 };
   }
-  const text = result.candidates?.[0]?.content?.parts
-    ?.filter((part) => !part.thought)
-    .map((part) => part.text ?? "")
-    .join("")
-    .trim();
+  const answerText = (response: GoogleResponse) =>
+    response.candidates?.[0]?.content?.parts
+      ?.filter((part) => !part.thought)
+      .map((part) => part.text ?? "")
+      .join("")
+      .trim();
+  let text = answerText(result);
+  if (!text && result.candidates?.[0]?.finishReason === "MAX_TOKENS" && !deadline.aborted) {
+    // Thought tokens share the output budget. Retry once with room for visible text.
+    result = await generate(activeModel, 8192);
+    text = answerText(result);
+  }
   if (text) return text;
   if (result.promptFeedback?.blockReason || result.candidates?.[0]?.finishReason === "SAFETY")
     return "Não consegui responder a esse pedido. Pode reformular a pergunta?";
-  throw new GeminiHttpError(502, "Gemini returned no answer text");
+  const finish = result.candidates?.[0]?.finishReason;
+  throw annotate(
+    new GeminiEmptyResponseError(finish ?? "NO_CANDIDATE"),
+    "empty_response",
+    undefined,
+    finish,
+  );
 }

@@ -5,7 +5,7 @@ import DraggableMascot from "./DraggableMascot";
 import "./bear-mascot.css";
 import type { Questao2027 } from "../data/exame2027";
 import { conversarComJuju } from "../lib/tutor-chat.functions";
-import { jujuResponse } from "../lib/gemini-connection";
+import { jujuResponse, JujuConnectionError } from "../lib/gemini-connection";
 
 interface Props {
   perfilId?: string;
@@ -22,6 +22,7 @@ interface Mensagem {
   texto: string;
   erro?: boolean;
   pendente?: boolean;
+  diagnostic?: string;
 }
 
 interface ResultadoReconhecimento {
@@ -124,7 +125,15 @@ export default function TutorBot({
         setSaudacao(aviso);
         setMensagens((atuais) =>
           atuais.map((item) =>
-            item.id === 0 ? { ...item, texto: aviso, erro: true, pendente: false } : item,
+            item.id === 0
+              ? {
+                  ...item,
+                  texto: aviso,
+                  erro: true,
+                  pendente: false,
+                  diagnostic: error instanceof JujuConnectionError ? error.diagnostic : undefined,
+                }
+              : item,
           ),
         );
         saudacaoPromiseRef.current = null;
@@ -386,7 +395,13 @@ export default function TutorBot({
           : "Não consegui responder agora. Tente de novo em instantes.";
       setMensagens((atuais) => [
         ...atuais,
-        { id: proximoId++, autor: "jujubot", texto: respostaErro, erro: true },
+        {
+          id: proximoId++,
+          autor: "jujubot",
+          texto: respostaErro,
+          erro: true,
+          diagnostic: erro instanceof JujuConnectionError ? erro.diagnostic : undefined,
+        },
       ]);
       if (veioDaVoz || vozAtivaRef.current) falarResposta(respostaErro);
     } finally {
@@ -649,6 +664,12 @@ export default function TutorBot({
                     </span>
                   )}
                   {mensagem.texto}
+                  {mensagem.diagnostic && (
+                    <details className="mt-2 text-[11px] text-[#a9b5be]">
+                      <summary className="cursor-pointer">Detalhes da conexão</summary>
+                      <p className="mt-1 whitespace-pre-wrap select-text">{mensagem.diagnostic}</p>
+                    </details>
+                  )}
                   {mensagem.erro &&
                     !mensagem.pendente &&
                     index === mensagens.length - 1 &&

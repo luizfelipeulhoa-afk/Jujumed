@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { generateGeminiReply, getGeminiSettings } from "./gemini-native.server";
+import { generateGeminiReply, getGeminiSettings, geminiDiagnostic } from "./gemini-native.server";
 import { GeminiConfigurationError, geminiFailure, jujuResponse } from "./gemini-connection";
 
 test("classifies configuration and Google failures without returning upstream secrets", () => {
@@ -142,6 +142,45 @@ test("native Google requests handle model discovery, actual response format and 
       (error) => geminiFailure(error).code === "quota",
     );
     assert.equal(quotaCalls, 1);
+    let truncatedCalls = 0;
+    globalThis.fetch = async (_url, init) => {
+      truncatedCalls++;
+      const body = JSON.parse(String(init?.body));
+      assert.equal(body.generationConfig.maxOutputTokens, truncatedCalls === 1 ? 4096 : 8192);
+      return Response.json(
+        truncatedCalls === 1
+          ? {
+              candidates: [{ finishReason: "MAX_TOKENS" }],
+              usageMetadata: { thoughtsTokenCount: 4096 },
+            }
+          : {
+              candidates: [
+                { content: { parts: [{ text: "Agora respondi em texto" }] }, finishReason: "STOP" },
+              ],
+            },
+      );
+    };
+    assert.equal(await generateGeminiReply(messages), "Agora respondi em texto");
+    assert.equal(truncatedCalls, 2);
+
+    globalThis.fetch = async () =>
+      Response.json({
+        candidates: [
+          {
+            finishReason: "STOP",
+            content: { parts: [{ thought: true, text: "not a user answer" }] },
+          },
+        ],
+      });
+    await assert.rejects(generateGeminiReply(messages), (error) => {
+      assert.equal(geminiFailure(error).code, "empty_response");
+      const diagnostic = geminiDiagnostic(error);
+      assert.ok(diagnostic?.includes("empty_response"));
+      assert.ok(diagnostic?.includes("STOP"));
+      assert.ok(!diagnostic?.includes("test-native-google-key"));
+      assert.ok(!diagnostic?.includes("HTTP 502"));
+      return true;
+    });
   } finally {
     globalThis.fetch = originalFetch;
     for (const name of names) {
