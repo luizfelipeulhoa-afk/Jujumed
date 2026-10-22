@@ -5,6 +5,7 @@ import DraggableMascot from "./DraggableMascot";
 import "./bear-mascot.css";
 import type { Questao2027 } from "../data/exame2027";
 import { conversarComJuju } from "../lib/tutor-chat.functions";
+import { jujuResponse } from "../lib/gemini-connection";
 
 interface Props {
   perfilId?: string;
@@ -19,6 +20,7 @@ interface Mensagem {
   id: number;
   autor: "jujubot" | "voce";
   texto: string;
+  erro?: boolean;
 }
 
 interface ResultadoReconhecimento {
@@ -101,21 +103,24 @@ export default function TutorBot({
     animar("wave");
     saudacaoPromiseRef.current ??= conversarComJuju({
       data: { mensagem: "", acao: "greeting", ...contextoDoUrso() },
-    });
+    }).then(jujuResponse);
     void saudacaoPromiseRef.current
       .then((resposta) => {
         if (!ativo) return;
         setSaudacao(resposta);
         setMensagens((atuais) =>
-          atuais.map((item) => (item.id === 0 ? { ...item, texto: resposta } : item)),
+          atuais.map((item) => (item.id === 0 ? { ...item, texto: resposta, erro: false } : item)),
         );
       })
-      .catch(() => {
+      .catch((error: unknown) => {
         if (!ativo) return;
-        const aviso = "Não consegui conectar ao Gemini agora. Toque no urso para tentar novamente.";
+        const aviso =
+          error instanceof Error
+            ? error.message
+            : "Não consegui conectar ao Gemini agora. Toque no urso para tentar novamente.";
         setSaudacao(aviso);
         setMensagens((atuais) =>
-          atuais.map((item) => (item.id === 0 ? { ...item, texto: aviso } : item)),
+          atuais.map((item) => (item.id === 0 ? { ...item, texto: aviso, erro: true } : item)),
         );
         saudacaoPromiseRef.current = null;
       });
@@ -131,6 +136,7 @@ export default function TutorBot({
       id: 0,
       autor: "jujubot",
       texto: "O Totem da sabedoria está preparando uma saudação para você…",
+      erro: true,
     },
   ]);
   const [texto, setTexto] = useState("");
@@ -308,17 +314,22 @@ export default function TutorBot({
       setMensagens((atuais) => [...atuais, { id: proximoId++, autor: "voce", texto: limpa }]);
     setCarregando(true);
     try {
-      const resposta = await conversarComJuju({
-        data: {
-          mensagem: limpa,
-          ...(acao ? { acao, ...contextoDoUrso() } : {}),
-          questaoId: questaoAtivaIdRef.current,
-          historico: mensagens.slice(-8).map((item) => ({
-            role: item.autor === "voce" ? ("user" as const) : ("assistant" as const),
-            content: item.texto,
-          })),
-        },
-      });
+      const resposta = jujuResponse(
+        await conversarComJuju({
+          data: {
+            mensagem: limpa,
+            ...(acao ? { acao, ...contextoDoUrso() } : {}),
+            questaoId: questaoAtivaIdRef.current,
+            historico: mensagens
+              .filter((item) => !item.erro)
+              .slice(-8)
+              .map((item) => ({
+                role: item.autor === "voce" ? ("user" as const) : ("assistant" as const),
+                content: item.texto,
+              })),
+          },
+        }),
+      );
       setMensagens((atuais) => [...atuais, { id: proximoId++, autor: "jujubot", texto: resposta }]);
       if (acao && painelAbertoRef.current) falarResposta(resposta, true);
       else if (veioDaVoz || vozAtivaRef.current) falarResposta(resposta);
@@ -329,7 +340,7 @@ export default function TutorBot({
           : "Não consegui responder agora. Tente de novo em instantes.";
       setMensagens((atuais) => [
         ...atuais,
-        { id: proximoId++, autor: "jujubot", texto: respostaErro },
+        { id: proximoId++, autor: "jujubot", texto: respostaErro, erro: true },
       ]);
       if (veioDaVoz || vozAtivaRef.current) falarResposta(respostaErro);
     } finally {
