@@ -102,9 +102,10 @@ test("native Google requests stay on Gemini 3.8 and handle response format and q
     );
     for (const temporary of ["unavailable", "timeout"]) {
       let calls = 0;
+      const recoveryAttempt = temporary === "unavailable" ? 3 : 2;
       globalThis.fetch = async () => {
         calls++;
-        if (calls === 1) {
+        if (calls < recoveryAttempt) {
           if (temporary === "timeout") throw new DOMException("Simulated delay", "TimeoutError");
           return Response.json({ error: { code: 503, message: "Unavailable" } }, { status: 503 });
         }
@@ -113,7 +114,7 @@ test("native Google requests stay on Gemini 3.8 and handle response format and q
         });
       };
       assert.equal(await generateGeminiReply(messages), "Conexão recuperada");
-      assert.equal(calls, 2);
+      assert.equal(calls, recoveryAttempt);
     }
 
     let unavailableCalls = 0;
