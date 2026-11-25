@@ -1,25 +1,44 @@
 import { notifyMascot } from "../lib/mascot-events";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { CADERNOS_2027, type Disciplina2027 } from "../data/exame2027";
 import { corrigirDiscursivaIA, type ResultadoCorrecaoIA } from "../lib/correcao-ai.functions";
 import { criarRevisaoErro, CAUSAS_ERRO, type CausaErro, type RevisaoErro } from "../lib/caderno";
 import { rotuloDisciplina, type NotasCadernos } from "../lib/exame2027";
 import DiscursiveCard from "./DiscursiveCard";
-import { IconArrowLeft, IconCheck, IconNotebook, IconPulse } from "./icons";
+import { IconArrow, IconArrowLeft, IconCheck, IconNotebook, IconPulse } from "./icons";
 
 interface Props {
-  voltar: () => void;
+  perfilId: string;
   notas: NotasCadernos;
   onNotas: (notas: NotasCadernos) => void;
   onRevisao: (revisao: RevisaoErro) => void;
 }
 
-export default function DiscursivasView({ voltar, notas, onNotas, onRevisao }: Props) {
+export default function DiscursivasView({ perfilId, notas, onNotas, onRevisao }: Props) {
   const corrigirNoServidor = useServerFn(corrigirDiscursivaIA);
   const [caderno, setCaderno] = useState<Disciplina2027 | null>(null);
   const [indice, setIndice] = useState(0);
-  const [respostas, setRespostas] = useState<Record<string, string>>({});
+  const chaveRascunhos = `tutor-uerj-rascunhos-discursivas:${perfilId}`;
+  const [respostas, setRespostas] = useState<Record<string, string>>(() => {
+    try {
+      const salvo: unknown = JSON.parse(localStorage.getItem(chaveRascunhos) ?? "null");
+      if (salvo && typeof salvo === "object" && !Array.isArray(salvo))
+        return Object.fromEntries(
+          Object.entries(salvo).filter(([, texto]) => typeof texto === "string"),
+        );
+    } catch {
+      // Rascunhos continuam disponíveis durante a sessão quando o armazenamento falha.
+    }
+    return {};
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem(chaveRascunhos, JSON.stringify(respostas));
+    } catch {
+      // O treino continua mesmo sem armazenamento local.
+    }
+  }, [chaveRascunhos, respostas]);
   const [resultados, setResultados] = useState<Record<string, ResultadoCorrecaoIA>>({});
   const [corrigindo, setCorrigindo] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
@@ -42,12 +61,16 @@ export default function DiscursivasView({ voltar, notas, onNotas, onRevisao }: P
     );
   }, [caderno, concluido, resultadosDoCaderno]);
 
-  const selecionar = (disciplina: Disciplina2027) => {
-    setCaderno(disciplina);
-    setIndice(0);
+  const irParaQuestao = (destino: number) => {
+    setIndice(destino);
     setErro(null);
     setCausa("");
     setRevisaoRegistrada(false);
+  };
+  const selecionar = (disciplina: Disciplina2027) => {
+    setCaderno(disciplina);
+    const proxima = CADERNOS_2027[disciplina].findIndex((q) => !respostas[q.id]?.trim());
+    irParaQuestao(Math.max(0, proxima));
   };
   const corrigir = async () => {
     if (!atual) return;
@@ -62,17 +85,12 @@ export default function DiscursivasView({ voltar, notas, onNotas, onRevisao }: P
       setResultados((prev) => ({ ...prev, [atual.id]: resultado }));
       if (resultado.notaMaxima > 0 && resultado.nota >= resultado.notaMaxima)
         notifyMascot({ type: "correct-answer" });
-    } catch (e) {
-      setErro(e instanceof Error ? e.message : "Não foi possível concluir a avaliação.");
+    } catch {
+      setErro(
+        "A correção com IA está indisponível agora. Você pode comparar sua resposta com o gabarito.",
+      );
     } finally {
       setCorrigindo(false);
-    }
-  };
-  const avancar = () => {
-    if (indice < questoes.length - 1) {
-      setIndice((i) => i + 1);
-      setCausa("");
-      setRevisaoRegistrada(false);
     }
   };
   const registrarRevisao = () => {
@@ -101,7 +119,7 @@ export default function DiscursivasView({ voltar, notas, onNotas, onRevisao }: P
           </p>
           <h1 className="font-display text-3xl font-extrabold text-ink-100">Escolha um caderno</h1>
           <p className="mt-2 max-w-2xl text-sm text-ink-300">
-            Cada prova tem progresso e nota independentes, conforme os pesos oficiais.
+            Responda no seu ritmo e confira o gabarito de cada questão.
           </p>
         </div>
         <div className="grid gap-4 md:grid-cols-3">
@@ -125,6 +143,10 @@ export default function DiscursivasView({ voltar, notas, onNotas, onRevisao }: P
                   ? "Aguardando diagnóstico"
                   : `Nota registrada: ${notas[d]?.toFixed(1)}`}
               </div>
+              <p className="mt-2 text-xs text-ink-300">
+                {CADERNOS_2027[d].filter((q) => respostas[q.id]?.trim()).length} de{" "}
+                {CADERNOS_2027[d].length} com resposta escrita
+              </p>
             </button>
           ))}
         </div>
@@ -137,7 +159,8 @@ export default function DiscursivasView({ voltar, notas, onNotas, onRevisao }: P
       <header className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <button
           onClick={() => setCaderno(null)}
-          className="inline-flex items-center gap-2 rounded-lg border border-ink-700 px-3 py-2 text-sm text-ink-200"
+          disabled={corrigindo}
+          className="inline-flex items-center gap-2 rounded-lg border border-ink-700 px-3 py-2 text-sm text-ink-200 disabled:opacity-40"
         >
           <IconArrowLeft className="h-4 w-4" />
           Cadernos
@@ -149,19 +172,23 @@ export default function DiscursivasView({ voltar, notas, onNotas, onRevisao }: P
           </h1>
         </div>
       </header>
-      <div className="mb-5 flex gap-1.5 overflow-x-auto">
+      <nav aria-label="Questões do caderno" className="mb-5 flex flex-wrap gap-1.5">
         {questoes.map((q, i) => (
           <button
             key={q.id}
-            onClick={() => setIndice(i)}
-            className={`h-9 min-w-9 rounded-md border text-xs font-bold ${i === indice ? "border-emer bg-emer text-ink-950" : resultados[q.id] ? "border-emer/50 bg-emer/10 text-emer" : "border-ink-700 bg-ink-850 text-ink-400"}`}
+            onClick={() => irParaQuestao(i)}
+            disabled={corrigindo}
+            aria-label={`Questão ${i + 1}${resultados[q.id] ? " · corrigida" : respostas[q.id]?.trim() ? " · com resposta escrita" : ""}`}
+            aria-current={i === indice ? "step" : undefined}
+            className={`h-10 min-w-10 rounded-md border text-xs font-bold disabled:opacity-40 ${i === indice ? "border-emer bg-emer text-ink-950" : resultados[q.id] ? "border-emer/50 bg-emer/10 text-emer" : respostas[q.id]?.trim() ? "border-uerj-gold/50 bg-ink-850 text-uerj-gold" : "border-ink-700 bg-ink-850 text-ink-400"}`}
           >
             {i + 1}
           </button>
         ))}
-      </div>
+      </nav>
       {atual && (
         <DiscursiveCard
+          key={atual.id}
           questao={atual}
           ordem={indice + 1}
           total={questoes.length}
@@ -169,7 +196,6 @@ export default function DiscursivasView({ voltar, notas, onNotas, onRevisao }: P
           resposta={respostas[atual.id] || ""}
           onResponder={(r) => setRespostas((p) => ({ ...p, [atual.id]: r }))}
           onCorrigir={corrigir}
-          onNext={avancar}
           corrigindo={corrigindo}
           erro={erro}
         />
@@ -204,6 +230,26 @@ export default function DiscursivasView({ voltar, notas, onNotas, onRevisao }: P
             {revisaoRegistrada ? "Revisão agendada" : "Agendar revisão"}
           </button>
         </section>
+      )}
+      {questoes.length > 1 && (
+        <div className="mt-4 flex flex-wrap justify-between gap-3">
+          <button
+            type="button"
+            onClick={() => irParaQuestao(indice - 1)}
+            disabled={corrigindo || indice === 0}
+            className="inline-flex items-center gap-2 rounded-lg border border-ink-700 px-4 py-2.5 text-sm font-bold text-ink-100 disabled:opacity-40"
+          >
+            <IconArrowLeft className="h-4 w-4" /> Questão anterior
+          </button>
+          <button
+            type="button"
+            onClick={() => irParaQuestao(indice + 1)}
+            disabled={corrigindo || indice === questoes.length - 1}
+            className="inline-flex items-center gap-2 rounded-lg bg-emer px-4 py-2.5 text-sm font-bold text-ink-950 disabled:opacity-40"
+          >
+            Próxima questão <IconArrow className="h-4 w-4" />
+          </button>
+        </div>
       )}
       {concluido && notaCaderno !== null && (
         <section className="mt-5 rounded-lg border border-emer/50 bg-emer/5 p-5">
