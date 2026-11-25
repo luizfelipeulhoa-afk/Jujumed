@@ -2,7 +2,7 @@ import { notifyMascot } from "../lib/mascot-events";
 import { useEffect, useRef, useState } from "react";
 
 /** Mounted only for Ju's profile; navigating between study views keeps playback intact. */
-export default function JuWelcomeMusic() {
+export default function JuWelcomeMusic({ emSimulado }: { emSimulado: boolean }) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = useState(false);
   const [dismissed, setDismissed] = useState(false);
@@ -56,7 +56,7 @@ export default function JuWelcomeMusic() {
   return (
     <aside
       aria-label="Música de boas-vindas da Ju"
-      className="fixed bottom-4 left-3 z-[60] w-[min(280px,calc(100vw-160px))] rounded-2xl border border-[#d4a574]/40 bg-[#17251f]/95 p-3 text-[#f6e7ce] shadow-xl backdrop-blur"
+      className={`rounded-2xl border border-[#d4a574]/40 bg-[#17251f]/95 p-3 text-[#f6e7ce] shadow-xl backdrop-blur ${emSimulado ? "ml-4 w-64 max-w-[calc(100%-2rem)]" : "fixed bottom-4 left-3 z-[60] w-[min(280px,calc(100vw-160px))]"}`}
     >
       <audio
         ref={audioRef}

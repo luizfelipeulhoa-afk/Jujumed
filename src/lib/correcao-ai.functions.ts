@@ -63,8 +63,9 @@ export const corrigirDiscursivaIA = createServerFn({ method: "POST" })
     const rubric = questao.criterios.map((c) => `- ${c.descricao}: 0 a ${c.pontos} ponto(s)`).join("\n");
     const result = streamText({
       model: getConfiguredAiModel(),
+      timeout: 28000,
+      instructions: "Você é avaliador rigoroso do Exame Discursivo DSEA/UERJ. Avalie somente conhecimento demonstrado em frases coerentes. Não dê pontos a contradições, afirmações cientificamente falsas nem listas desconexas de palavras-chave. Responda exclusivamente com JSON válido, sem markdown.",
       messages: [
-        { role: "system", content: "Você é avaliador rigoroso do Exame Discursivo DSEA/UERJ. Avalie somente conhecimento demonstrado em frases coerentes. Não dê pontos a contradições, afirmações cientificamente falsas nem listas desconexas de palavras-chave. Responda exclusivamente com JSON válido, sem markdown." },
         { role: "user", content: `QUESTÃO: ${questao.comando}\nAPOIO: ${questao.apoio}\nPADRÃO ESPERADO DSEA: ${questao.padraoDsea}\nRUBRICA:\n${rubric}\nRESPOSTA DA ALUNA:\n${data.resposta}\n\nRetorne JSON com: criterios (array com descricao,maximo,obtido,justificativa), pontosFortes (array), faltouParaNotaMaxima (array), comparacaoDsea (string), feedback (string). A soma de obtido não pode exceder ${questao.pontuacaoMaxima}.` },
       ],
     });

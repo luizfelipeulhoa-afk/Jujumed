@@ -125,18 +125,19 @@ export default function App() {
       </>
     );
 
+  const emSimulado = rota === "/discursivas" || rota === "/prova";
   return (
     <div className="min-h-screen">
-      {perfil.id === "jujuba" && <JuWelcomeMusic key={perfil.id} />}
       <PeaceBackground />
       <SiteHeader rota={rota} navegar={navegar} onExame={() => navegar("/discursivas")} />
       <div className="fixed right-4 top-[76px] z-30">
         <ProfileBadge perfil={perfil} onTrocarPerfil={trocarPerfil} />
       </div>
       <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:py-10">
-        {rota === "/discursivas" || rota === "/prova" ? (
+        {emSimulado ? (
           <DiscursivasView
-            voltar={() => navegar("/")}
+            key={perfil.id}
+            perfilId={perfil.id}
             notas={notas}
             onNotas={setNotas}
             onRevisao={adicionarRevisao}
@@ -158,6 +159,7 @@ export default function App() {
           />
         )}
       </main>
+      {perfil.id === "jujuba" && <JuWelcomeMusic key={perfil.id} emSimulado={emSimulado} />}
       <TutorBot
         perfilId={perfil.id}
         questaoAtiva={null}

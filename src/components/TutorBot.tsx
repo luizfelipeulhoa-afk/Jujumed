@@ -31,7 +31,6 @@ interface Mensagem {
   autor: "jujubot" | "voce";
   texto: string;
   erro?: boolean;
-  pendente?: boolean;
   diagnostic?: string | undefined;
 }
 
@@ -62,6 +61,9 @@ type JanelaComVoz = Window & {
   webkitSpeechRecognition?: new () => ReconhecedorVoz;
 };
 
+const SAUDACAO = "Oi! Quer revisar Biologia, Química ou Redação comigo?";
+type AcaoTotem = "greeting" | "stethoscope" | "breathe";
+
 let proximoId = 1;
 
 function contextoDoUrso() {
@@ -90,9 +92,6 @@ export default function TutorBot({
   onLimparPerguntaInicial,
 }: Props) {
   const [aberto, setAberto] = useState(false);
-  const [saudacao, setSaudacao] = useState(
-    "O Totem da sabedoria está preparando uma saudação para você…",
-  );
   const [mostrarSaudacao, setMostrarSaudacao] = useState(true);
   const [recadoFechado, setRecadoFechado] = useState(false);
   const mostrarRecado = perfilId === "jujuba" && !recadoFechado;
@@ -100,7 +99,6 @@ export default function TutorBot({
     setRecadoFechado(false);
   }, [perfilId]);
   const [gesto, setGesto] = useState<"idle" | "wave" | "stethoscope" | "breathe">("wave");
-  const saudacaoPromiseRef = useRef<Promise<string> | null>(null);
   const painelAbertoRef = useRef(false);
   const gestoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -111,46 +109,9 @@ export default function TutorBot({
   }, []);
 
   useEffect(() => {
-    let ativo = true;
     animar("wave");
-    saudacaoPromiseRef.current ??= conversarComJuju({
-      data: { mensagem: "", acao: "greeting", ...contextoDoUrso() },
-    }).then(jujuResponse);
-    void saudacaoPromiseRef.current
-      .then((resposta) => {
-        if (!ativo) return;
-        setSaudacao(resposta);
-        setMensagens((atuais) =>
-          atuais.map((item) =>
-            item.id === 0 ? { ...item, texto: resposta, erro: false, pendente: false } : item,
-          ),
-        );
-      })
-      .catch((error: unknown) => {
-        if (!ativo) return;
-        const aviso =
-          error instanceof Error
-            ? error.message
-            : "Não consegui conectar ao Gemini agora. Toque no urso para tentar novamente.";
-        setSaudacao(aviso);
-        setMensagens((atuais) =>
-          atuais.map((item) =>
-            item.id === 0
-              ? {
-                  ...item,
-                  texto: aviso,
-                  erro: true,
-                  pendente: false,
-                  diagnostic: error instanceof JujuConnectionError ? error.diagnostic : undefined,
-                }
-              : item,
-          ),
-        );
-        saudacaoPromiseRef.current = null;
-      });
     const timer = setTimeout(() => setMostrarSaudacao(false), 30000);
     return () => {
-      ativo = false;
       clearTimeout(timer);
       if (gestoTimer.current) clearTimeout(gestoTimer.current);
     };
@@ -159,9 +120,7 @@ export default function TutorBot({
     {
       id: 0,
       autor: "jujubot",
-      texto: "O Totem da sabedoria está preparando uma saudação para você…",
-      erro: true,
-      pendente: true,
+      texto: SAUDACAO,
     },
   ]);
   const [texto, setTexto] = useState("");
@@ -188,6 +147,7 @@ export default function TutorBot({
     async () => {},
   );
   const perguntaInicialEnviadaRef = useRef<string | null>(null);
+  const repetirMensagemRef = useRef<(() => void) | null>(null);
 
   const estaAberto = aberto || abertoExternamente;
 
@@ -357,29 +317,17 @@ export default function TutorBot({
     void enviarMensagem("", false, acao === "wave" ? "greeting" : acao);
   }
 
-  async function abrirUrso() {
-    void geminiSpeech.unlock().catch(() => {});
-    painelAbertoRef.current = true;
+  function abrirUrso() {
     setAberto(true);
     setMostrarSaudacao(false);
     animar("wave");
-    if (!saudacaoPromiseRef.current) {
-      void enviarMensagem("", false, "greeting");
-      return;
-    }
-    try {
-      const resposta = await saudacaoPromiseRef.current;
-      if (painelAbertoRef.current && lerRespostasRef.current && !trabalhandoRef.current)
-        void falarResposta(resposta, true);
-    } catch {
-      setAvisoVoz("O Gemini não respondeu. Use Dar um oi para tentar novamente.");
-    }
   }
 
   async function enviarMensagem(
     mensagem: string,
     veioDaVoz = false,
-    acao?: "greeting" | "stethoscope" | "breathe",
+    acao?: AcaoTotem,
+    repetir = false,
   ) {
     const limpa = mensagem.trim();
     if ((!limpa && !acao) || trabalhandoRef.current) return;
@@ -388,9 +336,10 @@ export default function TutorBot({
     trabalhandoRef.current = true;
     notifyMascot({ type: "thinking", active: true });
     reconhecedorRef.current?.stop();
-    setTexto("");
+    repetirMensagemRef.current = () => void enviarMensagem(limpa, veioDaVoz, acao, true);
+    if (!repetir) setTexto("");
     setAvisoVoz("");
-    if (!acao)
+    if (!acao && !repetir)
       setMensagens((atuais) => [...atuais, { id: proximoId++, autor: "voce", texto: limpa }]);
     setCarregando(true);
     try {
@@ -525,7 +474,7 @@ export default function TutorBot({
               <p className="bear-greeting-text">
                 {mostrarRecado
                   ? "Seu irmão te ama muito, muito mais do que eu consigo demonstrar! Eu ja tenho muito orgulho de você mas eu sei que você pode muito mais, conte comigo sempre, Espero que goste do seu Totem"
-                  : saudacao}
+                  : SAUDACAO}
               </p>
               <button type="button" className="bear-greeting-action" onClick={abrirUrso}>
                 Conversar com o Totem da sabedoria ↗
@@ -786,7 +735,7 @@ export default function TutorBot({
                     </span>
                   )}
                   {mensagem.texto}
-                  {mensagem.autor === "jujubot" && !mensagem.erro && !mensagem.pendente && (
+                  {mensagem.autor === "jujubot" && !mensagem.erro && (
                     <button
                       type="button"
                       disabled={carregando || !sinteseDisponivel}
@@ -805,25 +754,26 @@ export default function TutorBot({
                       <p className="mt-1 whitespace-pre-wrap select-text">{mensagem.diagnostic}</p>
                     </details>
                   )}
-                  {mensagem.erro &&
-                    !mensagem.pendente &&
-                    index === mensagens.length - 1 &&
-                    !carregando && (
+                  {mensagem.erro && index === mensagens.length - 1 && !carregando && (
+                    <div className="mt-2 flex flex-wrap gap-2">
                       <button
                         type="button"
-                        className="mt-2 block rounded-lg border border-[#d4a574]/50 px-3 py-2 text-xs text-[#edcca7]"
-                        onClick={() => {
-                          const previous = mensagens
-                            .slice(0, index)
-                            .reverse()
-                            .find((item) => item.autor === "voce");
-                          if (previous) void enviarMensagem(previous.texto);
-                          else brincar("wave");
-                        }}
+                        className="rounded-lg border border-[#d4a574]/50 px-3 py-2 text-xs text-[#edcca7]"
+                        onClick={() => repetirMensagemRef.current?.()}
                       >
                         Tentar novamente
                       </button>
-                    )}
+                      {perfilId && (
+                        <a
+                          href="#/discursivas"
+                          onClick={fechar}
+                          className="rounded-lg border border-white/15 px-3 py-2 text-xs text-[#91d8cb]"
+                        >
+                          Abrir simulados
+                        </a>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
