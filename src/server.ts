@@ -1,5 +1,6 @@
 import handler from "@tanstack/react-start/server-entry";
 import "./lib/error-capture";
+import { handleTranscricao } from "./lib/transcricao.server";
 
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
@@ -32,6 +33,22 @@ function isH3SwallowedErrorBody(body: string): boolean {
 
 export default {
   async fetch(request: Request) {
+    const url = new URL(request.url);
+    if (url.pathname === "/api/transcrever") {
+      try {
+        return await handleTranscricao(request);
+      } catch (error) {
+        console.error(error);
+        return new Response(
+          JSON.stringify({
+            ok: false,
+            code: "connection",
+            message: "Não consegui transcrever agora. Tente de novo em instantes.",
+          }),
+          { status: 500, headers: { "content-type": "application/json; charset=utf-8" } },
+        );
+      }
+    }
     try {
       const response = await handler.fetch(request);
       return await normalizeCatastrophicSsrResponse(response);

@@ -2,6 +2,8 @@ import { notifyMascot } from "./lib/mascot-events";
 import { useCallback, useEffect, useState } from "react";
 import CadernoView from "./components/CadernoView";
 import DiscursivasView from "./components/DiscursivasView";
+import QuizView from "./components/QuizView";
+import ResumoView from "./components/ResumoView";
 import Landing from "./components/Landing";
 import LoginScreen from "./components/LoginScreen";
 import JuWelcomeMusic from "./components/JuWelcomeMusic";
@@ -142,6 +144,10 @@ export default function App() {
             onNotas={setNotas}
             onRevisao={adicionarRevisao}
           />
+        ) : rota === "/resumo" ? (
+          <ResumoView navegar={navegar} />
+        ) : rota === "/quiz" ? (
+          <QuizView navegar={navegar} />
         ) : rota === "/enviar" ? (
           <UploadView
             onProcessar={processarUpload}

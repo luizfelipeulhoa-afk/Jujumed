@@ -790,6 +790,10 @@ export default function TutorBot({
             </div>
           )}
 
+          <p className="border-t border-white/5 px-4 py-2 text-[11px] leading-relaxed text-[#9eacb5]">
+            Não envie dados pessoais. Na camada gratuita, o Gemini pode usar o que você escreve para
+            melhorar os produtos do Google.
+          </p>
           <form
             onSubmit={enviarFormulario}
             className="flex items-end gap-2 border-t border-white/10 bg-[#151f29] p-3"
