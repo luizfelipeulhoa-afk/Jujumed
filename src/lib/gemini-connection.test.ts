@@ -115,6 +115,20 @@ test("native Google requests stay on Gemini 3.8 and handle response format and q
       assert.equal(await generateGeminiReply(messages), "Conexão recuperada");
       assert.equal(calls, 2);
     }
+
+    let unavailableCalls = 0;
+    globalThis.fetch = async () => {
+      unavailableCalls++;
+      if (unavailableCalls === 1) throw new TypeError("Network connection interrupted");
+      return Response.json({ error: { code: 503 } }, { status: 503 });
+    };
+    await assert.rejects(generateGeminiReply(messages), (error) => {
+      assert.equal(geminiFailure(error).code, "unavailable");
+      assert.match(geminiDiagnostic(error) ?? "", /HTTP 503[\s\S]*Tentativa: 3/);
+      return true;
+    });
+    assert.equal(unavailableCalls, 3);
+
     let quotaCalls = 0;
     globalThis.fetch = async () => {
       quotaCalls++;

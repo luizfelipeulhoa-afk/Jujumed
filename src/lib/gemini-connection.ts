@@ -99,7 +99,7 @@ export function geminiFailure(error: unknown): Extract<JujuChatResult, { ok: fal
   if (value.statusCode === 404)
     return fail(
       "model",
-      "O modelo configurado não está disponível para esta chave. Confira GEMINI_MODEL no Cloudflare e escolha um modelo disponível no Google AI Studio.",
+      "O modelo Gemini solicitado não está disponível para esta chave. Confira o acesso ao modelo no Google AI Studio.",
     );
   if (
     value.statusCode === 400 &&
@@ -112,7 +112,7 @@ export function geminiFailure(error: unknown): Extract<JujuChatResult, { ok: fal
   if (value.statusCode === 400)
     return fail(
       "connection",
-      "O Google recusou o formato ou a configuração da chamada ao Gemini (HTTP 400). Confira GEMINI_MODEL e tente novamente.",
+      "O Google recusou o formato ou a configuração da chamada ao Gemini (HTTP 400). Consulte os detalhes da conexão.",
     );
   if (value.statusCode === 429 || value.statusCode === 402)
     return fail(

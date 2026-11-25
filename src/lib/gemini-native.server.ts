@@ -2,6 +2,9 @@ import { GeminiConfigurationError, GeminiEmptyResponseError } from "./gemini-con
 
 const BASE = "https://generativelanguage.googleapis.com/v1beta";
 const CHAT_MODEL = "gemini-3.8-flash";
+const CHAT_TIMEOUT_MS = 28000;
+const ATTEMPT_TIMEOUT_MS = 10000;
+const MAX_ATTEMPTS = 3;
 type Message = { role: "system" | "user" | "assistant"; content: string };
 type GoogleResponse = {
   error?: { message?: string; status?: string };
@@ -52,16 +55,15 @@ export function getGeminiSettings() {
 
 export async function generateGeminiReply(messages: Message[]): Promise<string> {
   const { key, model } = getGeminiSettings();
-  const deadline = AbortSignal.timeout(65000);
+  const deadline = AbortSignal.timeout(CHAT_TIMEOUT_MS);
   const startedAt = Date.now();
   const id = crypto.randomUUID();
-  let activeModel = model,
-    activeAttempt = 1;
+  let activeAttempt = 1;
   function annotate(error: unknown, kind: string, http?: number, finish?: string) {
     if (error && typeof error === "object")
       diagnostics.set(error, {
         id,
-        model: activeModel,
+        model,
         attempt: activeAttempt,
         elapsedMs: Date.now() - startedAt,
         kind,
@@ -82,21 +84,21 @@ export async function generateGeminiReply(messages: Message[]): Promise<string> 
     if (last?.role === role) last.parts.push({ text: message.content });
     else contents.push({ role, parts: [{ text: message.content }] });
   }
-  // Gemini expects a user turn first. The UI may include an automatic greeting before it.
+  // The current user message follows the local greeting, which Gemini does not need.
   while (contents[0]?.role === "model") contents.shift();
 
-  async function request(path: string, body?: object): Promise<GoogleResponse> {
-    for (let attempt = 0; attempt < 2; attempt++) {
+  async function request(body: object): Promise<GoogleResponse> {
+    for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
       activeAttempt = attempt + 1;
       try {
-        const response = await fetch(`${BASE}/${path}`, {
-          method: body ? "POST" : "GET",
+        const response = await fetch(`${BASE}/models/${model}:generateContent`, {
+          method: "POST",
           headers: {
             "x-goog-api-key": key,
-            ...(body ? { "Content-Type": "application/json" } : {}),
+            "Content-Type": "application/json",
           },
-          ...(body ? { body: JSON.stringify(body) } : {}),
-          signal: AbortSignal.any([deadline, AbortSignal.timeout(30000)]),
+          body: JSON.stringify(body),
+          signal: AbortSignal.any([deadline, AbortSignal.timeout(ATTEMPT_TIMEOUT_MS)]),
         });
         const text = await response.text();
         if (!response.ok) throw new GeminiHttpError(response.status, text);
@@ -106,47 +108,40 @@ export async function generateGeminiReply(messages: Message[]): Promise<string> 
           throw new GeminiHttpError(502, "Invalid JSON response from Gemini");
         }
       } catch (error) {
+        const timeout =
+          error instanceof Error && ["TimeoutError", "AbortError"].includes(error.name);
         const temporary =
           error instanceof GeminiHttpError
             ? [408, 500, 502, 503, 504].includes(error.statusCode)
-            : error instanceof Error && ["TimeoutError", "AbortError"].includes(error.name);
-        if (attempt === 1 || !temporary || deadline.aborted)
+            : timeout || error instanceof TypeError;
+        const backoffMs = 500 * 2 ** attempt + Math.random() * 250;
+        if (
+          activeAttempt === MAX_ATTEMPTS ||
+          !temporary ||
+          deadline.aborted ||
+          Date.now() - startedAt + backoffMs >= CHAT_TIMEOUT_MS
+        )
           throw annotate(
             error,
-            error instanceof GeminiHttpError
-              ? "google_http"
-              : error instanceof Error && ["TimeoutError", "AbortError"].includes(error.name)
-                ? "timeout"
-                : "network",
+            error instanceof GeminiHttpError ? "google_http" : timeout ? "timeout" : "network",
             error instanceof GeminiHttpError ? error.statusCode : undefined,
           );
-        await new Promise((resolve) => setTimeout(resolve, 500 + Math.random() * 250));
+        await new Promise((resolve) => setTimeout(resolve, backoffMs));
       }
     }
     throw new GeminiHttpError(503, "Retry budget exhausted");
   }
-  async function generate(selected: string, outputTokens = 4096) {
-    activeModel = selected;
-    const thinkingConfig = /^gemini-3[.-]/.test(selected)
-      ? {
-          thinkingLevel:
-            /^gemini-3\.(1|5|6).*flash/.test(selected) || /^gemini-3-flash/.test(selected)
-              ? "minimal"
-              : "low",
-        }
-      : /^gemini-2\.5-flash/.test(selected)
-        ? { thinkingBudget: 0 }
-        : undefined;
-    return request(`models/${encodeURIComponent(selected)}:generateContent`, {
+  function generate(outputTokens = 4096) {
+    return request({
       systemInstruction: { parts: [{ text: system }] },
       contents,
       generationConfig: {
         maxOutputTokens: outputTokens,
-        ...(thinkingConfig ? { thinkingConfig } : {}),
+        thinkingConfig: { thinkingLevel: "low" },
       },
     });
   }
-  let result = await generate(model);
+  let result = await generate();
   const answerText = (response: GoogleResponse) =>
     response.candidates?.[0]?.content?.parts
       ?.filter((part) => !part.thought)
@@ -156,7 +151,7 @@ export async function generateGeminiReply(messages: Message[]): Promise<string> 
   let text = answerText(result);
   if (!text && result.candidates?.[0]?.finishReason === "MAX_TOKENS" && !deadline.aborted) {
     // Thought tokens share the output budget. Retry once with room for visible text.
-    result = await generate(activeModel, 8192);
+    result = await generate(8192);
     text = answerText(result);
   }
   if (text) return text;
