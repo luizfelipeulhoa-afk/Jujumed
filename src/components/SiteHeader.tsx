@@ -1,6 +1,74 @@
 import EcgStrip from "./EcgStrip";
 import { IconArrow, IconHeartPulse } from "./icons";
 
-const LINKS = [{ rota: "/", label: "Início" }, { rota: "/discursivas", label: "Simulados" }, { rota: "/enviar", label: "Enviar Prova" }, { rota: "/caderno", label: "Caderno de Erros" }];
-interface Props { rota: string; navegar: (rota: string) => void; onExame: () => void; }
-export default function SiteHeader({ rota, navegar, onExame }: Props) { return <header className="sticky top-0 z-40 border-b border-ink-700/80 bg-ink-900/90 backdrop-blur-md"><div className="relative mx-auto max-w-6xl px-4 sm:px-6"><EcgStrip/><div className="flex items-center justify-between gap-3 py-3.5"><a href="#/" className="flex min-w-0 items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-lg border border-uerj-red/50 bg-uerj-red/10"><IconHeartPulse className="h-6 w-6 text-uerj-red"/></span><span className="hidden sm:block"><strong className="block font-display text-sm text-ink-100">Jujumed <span className="text-emer">UERJ 2027</span></strong><span className="text-[11px] text-ink-400">Exame Discursivo · Medicina</span></span></a><nav className="hidden items-center gap-1 md:flex">{LINKS.map((l) => <a key={l.rota} href={`#${l.rota}`} onClick={() => navegar(l.rota)} className={`rounded-md px-3 py-2 text-xs font-semibold ${rota === l.rota ? "bg-ink-800 text-emer" : "text-ink-300"}`}>{l.label}</a>)}</nav><button onClick={onExame} className="inline-flex items-center gap-2 rounded-lg bg-emer px-4 py-2.5 text-xs font-bold text-ink-950">Abrir Exame Discursivo <IconArrow className="h-4 w-4"/></button></div></div></header>; }
+const LINKS = [
+  { rota: "/", label: "Início" },
+  { rota: "/resumo", label: "Resumos" },
+  { rota: "/quiz", label: "Quiz" },
+  { rota: "/discursivas", label: "Simulados" },
+  { rota: "/enviar", label: "Enviar Prova" },
+  { rota: "/caderno", label: "Caderno" },
+];
+
+interface Props {
+  rota: string;
+  navegar: (rota: string) => void;
+  onExame: () => void;
+}
+
+function linkClass(ativo: boolean) {
+  return `shrink-0 rounded-md px-3 py-2 text-xs font-semibold ${ativo ? "bg-ink-800 text-emer" : "text-ink-300"}`;
+}
+
+export default function SiteHeader({ rota, navegar, onExame }: Props) {
+  return (
+    <header className="sticky top-0 z-40 border-b border-ink-700/80 bg-ink-900/90 backdrop-blur-md">
+      <div className="relative mx-auto max-w-6xl px-4 sm:px-6">
+        <EcgStrip />
+        <div className="flex items-center justify-between gap-3 py-3.5">
+          <a href="#/" className="flex min-w-0 items-center gap-3">
+            <span className="flex h-10 w-10 items-center justify-center rounded-lg border border-uerj-red/50 bg-uerj-red/10">
+              <IconHeartPulse className="h-6 w-6 text-uerj-red" />
+            </span>
+            <span className="hidden sm:block">
+              <strong className="block font-display text-sm text-ink-100">
+                Jujumed <span className="text-emer">UERJ 2027</span>
+              </strong>
+              <span className="text-[11px] text-ink-400">Exame Discursivo · Medicina</span>
+            </span>
+          </a>
+          <nav className="hidden items-center gap-1 lg:flex">
+            {LINKS.map((item) => (
+              <a
+                key={item.rota}
+                href={`#${item.rota}`}
+                onClick={() => navegar(item.rota)}
+                className={linkClass(rota === item.rota)}
+              >
+                {item.label}
+              </a>
+            ))}
+          </nav>
+          <button
+            onClick={onExame}
+            className="inline-flex items-center gap-2 rounded-lg bg-emer px-4 py-2.5 text-xs font-bold text-ink-950"
+          >
+            Abrir Exame Discursivo <IconArrow className="h-4 w-4" />
+          </button>
+        </div>
+        <nav className="flex gap-1 overflow-x-auto pb-3 lg:hidden">
+          {LINKS.map((item) => (
+            <a
+              key={item.rota}
+              href={`#${item.rota}`}
+              onClick={() => navegar(item.rota)}
+              className={linkClass(rota === item.rota)}
+            >
+              {item.label}
+            </a>
+          ))}
+        </nav>
+      </div>
+    </header>
+  );
+}

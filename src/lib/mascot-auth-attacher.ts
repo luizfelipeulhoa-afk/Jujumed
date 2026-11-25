@@ -8,11 +8,17 @@ export const attachMascotAwareAuth = createMiddleware({ type: "function" }).clie
     const url = import.meta.env["VITE_SUPABASE_URL"];
     const key = import.meta.env["VITE_SUPABASE_PUBLISHABLE_KEY"];
     if (!url || !key) {
-      const [{ conversarComJuju }, { corrigirDiscursivaIA }] = await Promise.all([
+      const [{ conversarComJuju }, { corrigirDiscursivaIA }, estudo] = await Promise.all([
         import("./tutor-chat.functions"),
         import("./correcao-ai.functions"),
+        import("./estudo.functions"),
       ]);
-      const funcaoPublica = [conversarComJuju, corrigirDiscursivaIA].some(({ url }) => {
+      const funcaoPublica = [
+        conversarComJuju,
+        corrigirDiscursivaIA,
+        estudo.resumirConteudo,
+        estudo.gerarQuiz,
+      ].some(({ url }) => {
         const id = decodeURIComponent(url.split("/").pop() ?? "");
         return id === serverFnMeta.id;
       });

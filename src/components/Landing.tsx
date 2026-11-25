@@ -1,18 +1,237 @@
 import { useEffect, useMemo, useState } from "react";
 import { GUIA_O_BEM_AMADO, type Disciplina2027 } from "../data/exame2027";
-import { bonusDoConceito, calcularNotaFinal, DATA_EXAME_2027, rotuloDisciplina, type ConceitoEQ, type NotasCadernos } from "../lib/exame2027";
+import {
+  bonusDoConceito,
+  calcularNotaFinal,
+  DATA_EXAME_2027,
+  rotuloDisciplina,
+  type ConceitoEQ,
+  type NotasCadernos,
+} from "../lib/exame2027";
 import type { RevisaoErro } from "../lib/caderno";
-import { IconArrow, IconCalendar, IconNotebook, IconPen, IconStar, IconTarget } from "./icons";
+import {
+  IconArrow,
+  IconCalendar,
+  IconNotebook,
+  IconPen,
+  IconSpark,
+  IconStar,
+  IconTarget,
+} from "./icons";
 
-interface Props { conceitoEQ: ConceitoEQ; notas: NotasCadernos; revisoes: RevisaoErro[]; navegar: (rota: string) => void; }
-function Contagem() { const [agora, setAgora] = useState(() => Date.now()); useEffect(() => { const id = window.setInterval(() => setAgora(Date.now()), 1000); return () => clearInterval(id); }, []); const restante = Math.max(0, DATA_EXAME_2027.getTime() - agora); const unidades = [{l:"dias",v:Math.floor(restante/86400000)},{l:"horas",v:Math.floor(restante/3600000)%24},{l:"min",v:Math.floor(restante/60000)%60},{l:"seg",v:Math.floor(restante/1000)%60}]; return <div className="grid grid-cols-4 gap-2">{unidades.map((u) => <div key={u.l} className="rounded-lg border border-ink-700 bg-ink-900 p-3 text-center"><strong className="block font-mono text-xl text-uerj-gold sm:text-2xl">{String(u.v).padStart(2,"0")}</strong><span className="text-[9px] uppercase text-ink-400">{u.l}</span></div>)}</div>; }
+interface Props {
+  conceitoEQ: ConceitoEQ;
+  notas: NotasCadernos;
+  revisoes: RevisaoErro[];
+  navegar: (rota: string) => void;
+}
+function Contagem() {
+  const [agora, setAgora] = useState(() => Date.now());
+  useEffect(() => {
+    const id = window.setInterval(() => setAgora(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  const restante = Math.max(0, DATA_EXAME_2027.getTime() - agora);
+  const unidades = [
+    { l: "dias", v: Math.floor(restante / 86400000) },
+    { l: "horas", v: Math.floor(restante / 3600000) % 24 },
+    { l: "min", v: Math.floor(restante / 60000) % 60 },
+    { l: "seg", v: Math.floor(restante / 1000) % 60 },
+  ];
+  return (
+    <div className="grid grid-cols-4 gap-2">
+      {unidades.map((u) => (
+        <div key={u.l} className="rounded-lg border border-ink-700 bg-ink-900 p-3 text-center">
+          <strong className="block font-mono text-xl text-uerj-gold sm:text-2xl">
+            {String(u.v).padStart(2, "0")}
+          </strong>
+          <span className="text-[9px] uppercase text-ink-400">{u.l}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export default function Landing({ conceitoEQ, notas, revisoes, navegar }: Props) {
   const final = calcularNotaFinal(conceitoEQ, notas);
   const pendentes = revisoes.filter((r) => !r.concluidaEm).length;
-  const cards: { id: Disciplina2027; desc: string; peso: string }[] = [{id:"biologia",desc:"10 questões discursivas · 0 a 20",peso:"Peso 2 · até 40 pts"},{id:"quimica",desc:"10 questões discursivas · 0 a 20",peso:"Peso 1 · até 20 pts"},{id:"redacao",desc:"Proposta de 20 a 30 linhas",peso:"Peso 1 · até 20 pts"}];
-  return <div className="space-y-12 animate-fade-up"><section className="grid items-center gap-8 lg:grid-cols-[1.15fr_.85fr]"><div><span className="mb-5 inline-flex items-center gap-2 rounded-full border border-emer/40 bg-emer/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.18em] text-emer"><IconCalendar className="h-4 w-4"/>29 de novembro de 2026</span><h1 className="max-w-3xl font-display text-4xl font-extrabold leading-tight text-ink-100 sm:text-5xl">Exame Discursivo UERJ 2027 <span className="text-emer">· Medicina</span></h1><p className="mt-5 max-w-2xl text-[15px] leading-relaxed text-ink-300">Treine Biologia, Química e Redação em cadernos independentes, com correção analítica e projeção fiel à nota final.</p><button onClick={() => navegar("/discursivas")} className="mt-7 inline-flex items-center gap-2 rounded-lg bg-emer px-6 py-3.5 font-display text-sm font-bold text-ink-950">Começar simulado <IconArrow className="h-4 w-4"/></button></div><div className="rounded-lg border border-ink-700 bg-ink-850 p-5"><p className="mb-3 text-center text-xs font-bold uppercase tracking-[0.16em] text-ink-300">Contagem regressiva para a prova</p><Contagem/><p className="mt-3 text-center text-xs text-ink-400">Domingo, 29/11/2026 · Exame Discursivo</p></div></section>
-  <section><div className="mb-4 flex items-end justify-between"><div><p className="text-xs font-bold uppercase tracking-[0.16em] text-uerj-gold">Arquitetura oficial</p><h2 className="mt-1 font-display text-2xl font-extrabold text-ink-100">Três cadernos, uma nota final</h2></div></div><div className="grid gap-4 md:grid-cols-3">{cards.map((c) => <button key={c.id} onClick={() => navegar("/discursivas")} className="rounded-lg border border-ink-700 bg-ink-850 p-5 text-left transition hover:-translate-y-1 hover:border-emer"><IconPen className="mb-4 h-6 w-6 text-emer"/><h3 className="font-display text-xl font-bold text-ink-100">{rotuloDisciplina(c.id)}</h3><p className="mt-2 text-sm text-ink-300">{c.desc}</p><p className="mt-4 font-mono text-xs font-bold text-uerj-gold">{c.peso}</p></button>)}</div></section>
-  <section className="grid gap-5 lg:grid-cols-[1fr_1.2fr]"><div className="rounded-lg border border-ink-700 bg-ink-850 p-6"><p className="text-xs font-bold uppercase tracking-[0.16em] text-emer">Projeção atual</p><div className="mt-3 font-mono text-5xl font-bold text-ink-100">{final === null ? "—" : final.toFixed(1)}<span className="text-lg text-ink-400"> / 100</span></div><p className="mt-3 text-sm text-ink-300">{final === null ? "Aguardando Diagnóstico: conclua os três cadernos e informe seu conceito EQ." : "Nota projetada pela fórmula oficial informada."}</p><div className="mt-5 space-y-2 text-xs text-ink-300"><div className="flex justify-between"><span>Bônus EQ</span><strong>{conceitoEQ ? `${bonusDoConceito(conceitoEQ)} pts` : "pendente"}</strong></div><div className="flex justify-between"><span>Biologia × 2</span><strong>{notas.biologia === null ? "pendente" : `${(notas.biologia*2).toFixed(1)} pts`}</strong></div><div className="flex justify-between"><span>Química</span><strong>{notas.quimica === null ? "pendente" : `${notas.quimica.toFixed(1)} pts`}</strong></div><div className="flex justify-between"><span>Redação</span><strong>{notas.redacao === null ? "pendente" : `${notas.redacao.toFixed(1)} pts`}</strong></div></div></div><div className="rounded-lg border border-uerj-gold/40 bg-ink-850 p-6"><div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-uerj-gold"><IconStar className="h-4 w-4"/>Literatura obrigatória</div><h2 className="mt-3 font-display text-3xl font-extrabold text-ink-100">{GUIA_O_BEM_AMADO.obra} <span className="text-ink-400">· {GUIA_O_BEM_AMADO.autor}</span></h2><p className="mt-3 text-sm leading-relaxed text-ink-300">{GUIA_O_BEM_AMADO.guia}</p><div className="mt-5 grid gap-2 sm:grid-cols-2">{GUIA_O_BEM_AMADO.eixos.map((e) => <div key={e} className="flex gap-2 rounded-lg border border-ink-700 bg-ink-800 p-3 text-xs text-ink-200"><IconTarget className="h-4 w-4 shrink-0 text-uerj-gold"/>{e}</div>)}</div></div></section>
-  <section className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-ink-700 bg-ink-850 p-5"><div className="flex items-center gap-3"><IconNotebook className="h-6 w-6 text-uerj-red"/><div><h2 className="font-display font-bold text-ink-100">Revisão ativa em 3 dias</h2><p className="text-xs text-ink-400">{pendentes} revisão{pendentes === 1 ? "" : "ões"} pendente{pendentes === 1 ? "" : "s"}</p></div></div><button onClick={() => navegar("/caderno")} className="rounded-lg border border-emer/60 px-4 py-2 text-sm font-bold text-emer">Abrir Caderno de Erros</button></section></div>;
+  const cards: { id: Disciplina2027; desc: string; peso: string }[] = [
+    { id: "biologia", desc: "10 questões discursivas · 0 a 20", peso: "Peso 2 · até 40 pts" },
+    { id: "quimica", desc: "10 questões discursivas · 0 a 20", peso: "Peso 1 · até 20 pts" },
+    { id: "redacao", desc: "Proposta de 20 a 30 linhas", peso: "Peso 1 · até 20 pts" },
+  ];
+  return (
+    <div className="space-y-12 animate-fade-up">
+      <section className="grid items-center gap-8 lg:grid-cols-[1.15fr_.85fr]">
+        <div>
+          <span className="mb-5 inline-flex items-center gap-2 rounded-full border border-emer/40 bg-emer/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.18em] text-emer">
+            <IconCalendar className="h-4 w-4" />
+            29 de novembro de 2026
+          </span>
+          <h1 className="max-w-3xl font-display text-4xl font-extrabold leading-tight text-ink-100 sm:text-5xl">
+            Exame Discursivo UERJ 2027 <span className="text-emer">· Medicina</span>
+          </h1>
+          <p className="mt-5 max-w-2xl text-[15px] leading-relaxed text-ink-300">
+            Treine Biologia, Química e Redação em cadernos independentes, com correção analítica e
+            projeção fiel à nota final.
+          </p>
+          <button
+            onClick={() => navegar("/discursivas")}
+            className="mt-7 inline-flex items-center gap-2 rounded-lg bg-emer px-6 py-3.5 font-display text-sm font-bold text-ink-950"
+          >
+            Começar simulado <IconArrow className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="rounded-lg border border-ink-700 bg-ink-850 p-5">
+          <p className="mb-3 text-center text-xs font-bold uppercase tracking-[0.16em] text-ink-300">
+            Contagem regressiva para a prova
+          </p>
+          <Contagem />
+          <p className="mt-3 text-center text-xs text-ink-400">
+            Domingo, 29/11/2026 · Exame Discursivo
+          </p>
+        </div>
+      </section>
+      <section>
+        <div className="mb-4">
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-emer">
+            Para este fim de semana
+          </p>
+          <h2 className="mt-1 font-display text-2xl font-extrabold text-ink-100">
+            Resumo e quiz da aula
+          </h2>
+          <p className="mt-2 max-w-2xl text-sm text-ink-300">
+            Cole anotações ou uma gravação. O resumo sai na hora e vira um quiz com gabarito. O
+            Totem continua no canto da tela.
+          </p>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2">
+          <button
+            onClick={() => navegar("/resumo")}
+            className="rounded-lg border border-ink-700 bg-ink-850 p-5 text-left transition hover:-translate-y-1 hover:border-emer"
+          >
+            <IconSpark className="mb-4 h-6 w-6 text-emer" />
+            <h3 className="font-display text-xl font-bold text-ink-100">Resumos</h3>
+            <p className="mt-2 text-sm text-ink-300">
+              Gemini organiza a aula em ideias, termos e uma cadeia explicativa.
+            </p>
+          </button>
+          <button
+            onClick={() => navegar("/quiz")}
+            className="rounded-lg border border-ink-700 bg-ink-850 p-5 text-left transition hover:-translate-y-1 hover:border-emer"
+          >
+            <IconTarget className="mb-4 h-6 w-6 text-uerj-gold" />
+            <h3 className="font-display text-xl font-bold text-ink-100">Quiz</h3>
+            <p className="mt-2 text-sm text-ink-300">
+              Groq faz múltipla escolha com a resposta e uma explicação curta.
+            </p>
+          </button>
+        </div>
+      </section>
+      <section>
+        <div className="mb-4 flex items-end justify-between">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-uerj-gold">
+              Arquitetura oficial
+            </p>
+            <h2 className="mt-1 font-display text-2xl font-extrabold text-ink-100">
+              Três cadernos, uma nota final
+            </h2>
+          </div>
+        </div>
+        <div className="grid gap-4 md:grid-cols-3">
+          {cards.map((c) => (
+            <button
+              key={c.id}
+              onClick={() => navegar("/discursivas")}
+              className="rounded-lg border border-ink-700 bg-ink-850 p-5 text-left transition hover:-translate-y-1 hover:border-emer"
+            >
+              <IconPen className="mb-4 h-6 w-6 text-emer" />
+              <h3 className="font-display text-xl font-bold text-ink-100">
+                {rotuloDisciplina(c.id)}
+              </h3>
+              <p className="mt-2 text-sm text-ink-300">{c.desc}</p>
+              <p className="mt-4 font-mono text-xs font-bold text-uerj-gold">{c.peso}</p>
+            </button>
+          ))}
+        </div>
+      </section>
+      <section className="grid gap-5 lg:grid-cols-[1fr_1.2fr]">
+        <div className="rounded-lg border border-ink-700 bg-ink-850 p-6">
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-emer">Projeção atual</p>
+          <div className="mt-3 font-mono text-5xl font-bold text-ink-100">
+            {final === null ? "—" : final.toFixed(1)}
+            <span className="text-lg text-ink-400"> / 100</span>
+          </div>
+          <p className="mt-3 text-sm text-ink-300">
+            {final === null
+              ? "Aguardando Diagnóstico: conclua os três cadernos e informe seu conceito EQ."
+              : "Nota projetada pela fórmula oficial informada."}
+          </p>
+          <div className="mt-5 space-y-2 text-xs text-ink-300">
+            <div className="flex justify-between">
+              <span>Bônus EQ</span>
+              <strong>{conceitoEQ ? `${bonusDoConceito(conceitoEQ)} pts` : "pendente"}</strong>
+            </div>
+            <div className="flex justify-between">
+              <span>Biologia × 2</span>
+              <strong>
+                {notas.biologia === null ? "pendente" : `${(notas.biologia * 2).toFixed(1)} pts`}
+              </strong>
+            </div>
+            <div className="flex justify-between">
+              <span>Química</span>
+              <strong>
+                {notas.quimica === null ? "pendente" : `${notas.quimica.toFixed(1)} pts`}
+              </strong>
+            </div>
+            <div className="flex justify-between">
+              <span>Redação</span>
+              <strong>
+                {notas.redacao === null ? "pendente" : `${notas.redacao.toFixed(1)} pts`}
+              </strong>
+            </div>
+          </div>
+        </div>
+        <div className="rounded-lg border border-uerj-gold/40 bg-ink-850 p-6">
+          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-uerj-gold">
+            <IconStar className="h-4 w-4" />
+            Literatura obrigatória
+          </div>
+          <h2 className="mt-3 font-display text-3xl font-extrabold text-ink-100">
+            {GUIA_O_BEM_AMADO.obra} <span className="text-ink-400">· {GUIA_O_BEM_AMADO.autor}</span>
+          </h2>
+          <p className="mt-3 text-sm leading-relaxed text-ink-300">{GUIA_O_BEM_AMADO.guia}</p>
+          <div className="mt-5 grid gap-2 sm:grid-cols-2">
+            {GUIA_O_BEM_AMADO.eixos.map((e) => (
+              <div
+                key={e}
+                className="flex gap-2 rounded-lg border border-ink-700 bg-ink-800 p-3 text-xs text-ink-200"
+              >
+                <IconTarget className="h-4 w-4 shrink-0 text-uerj-gold" />
+                {e}
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+      <section className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-ink-700 bg-ink-850 p-5">
+        <div className="flex items-center gap-3">
+          <IconNotebook className="h-6 w-6 text-uerj-red" />
+          <div>
+            <h2 className="font-display font-bold text-ink-100">Revisão ativa em 3 dias</h2>
+            <p className="text-xs text-ink-400">
+              {pendentes} revisão{pendentes === 1 ? "" : "ões"} pendente{pendentes === 1 ? "" : "s"}
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={() => navegar("/caderno")}
+          className="rounded-lg border border-emer/60 px-4 py-2 text-sm font-bold text-emer"
+        >
+          Abrir Caderno de Erros
+        </button>
+      </section>
+    </div>
+  );
 }
